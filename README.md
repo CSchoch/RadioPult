@@ -4,6 +4,7 @@ Eigene Android-Fernbedienung für WLAN-Radios mit Frontier-Silicon-Modul (die Ge
 
 ## Was die App kann
 
+- Ersteinrichtung: neues Radio über sein Setup-WLAN ins Heim-WLAN bringen und benennen (wie „Audiosystem einrichten“ in UNDOK)
 - Radios im WLAN automatisch finden (oder IP-Adresse manuell eingeben)
 - Ein/Aus (Standby)
 - Quelle wählen (Internetradio, DAB, UKW, Bluetooth, AUX …, je nach Gerät)
@@ -14,7 +15,7 @@ Eigene Android-Fernbedienung für WLAN-Radios mit Frontier-Silicon-Modul (die Ge
 - Equalizer: Klang-Preset wählen (Normal, Jazz, Rock …), im eigenen Preset („My EQ“) Bass/Höhen und Loudness einstellen
 - Merkt sich das zuletzt genutzte Radio und die PIN
 
-Nicht enthalten (im Vergleich zu UNDOK): Ersteinrichtung des Radios ins WLAN, Multiroom, Wecker/Sleep-Timer, Durchsuchen der Internetradio-Senderliste, Spotify/Streamingdienste.
+Nicht enthalten (im Vergleich zu UNDOK): Einrichtung per WPS oder LAN-Kabel, Multiroom, Wecker/Sleep-Timer, Durchsuchen der Internetradio-Senderliste, Spotify/Streamingdienste.
 
 ## So baust du die App
 
@@ -29,6 +30,7 @@ Nicht enthalten (im Vergleich zu UNDOK): Ersteinrichtung des Radios ins WLAN, Mu
 
 - Handy und Radio müssen im **selben WLAN** sein.
 - Die **PIN** ist bei den meisten Geräten `1234`. Am Radio steht sie meist unter *Einstellungen › Netzwerk › NetRemote PIN-Einstellungen*.
+- **Neues Radio:** In der Geräteliste auf „Neues Radio einrichten“ tippen. Das Radio muss im Setup-Modus sein (neu bzw. nach dem Zurücksetzen, oder am Radio *Netzwerk › Netzwerkassistent*). Ab Android 10 verbindet sich die App selbst mit dem Setup-WLAN, sonst einmal in den WLAN-Einstellungen mit „Setup …“ verbinden.
 - Wird das Radio nicht automatisch gefunden: IP-Adresse am Radio nachsehen (*Netzwerk › Einstellungen anzeigen*) oder im Router und manuell eingeben.
 
 ## Technik
@@ -38,5 +40,7 @@ Nicht enthalten (im Vergleich zu UNDOK): Ersteinrichtung des Radios ins WLAN, Mu
 - Code: `app/src/main/java/de/radiopult/app/`
   - `fsapi/FsApiClient.kt` – Schnittstelle zum Radio
   - `fsapi/Discovery.kt` – Gerätesuche
+  - `fsapi/RadioSetup.kt` – Ersteinrichtung (WLAN-Suche, Passwort-Verschlüsselung)
+  - `setup/` – Setup-WLAN und Ablauf der Einrichtung
   - `RadioViewModel.kt` – Zustand und Befehle
   - `ui/` – Bildschirme (`ui/EqualizerSheet.kt` – Equalizer)

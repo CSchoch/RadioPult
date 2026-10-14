@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -23,6 +24,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -48,7 +50,7 @@ import de.radiopult.app.fsapi.RadioDevice
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DevicesScreen(vm: RadioViewModel) {
+fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
     var pinFor by remember { mutableStateOf<RadioDevice?>(null) }
     var manualIp by rememberSaveable { mutableStateOf("") }
 
@@ -57,6 +59,9 @@ fun DevicesScreen(vm: RadioViewModel) {
             TopAppBar(
                 title = { Text("RadioPult") },
                 actions = {
+                    IconButton(onClick = onSetup) {
+                        Icon(Icons.Filled.Add, contentDescription = "Neues Radio einrichten")
+                    }
                     IconButton(onClick = vm::scan, enabled = !vm.scanning) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Erneut suchen")
                     }
@@ -83,7 +88,8 @@ fun DevicesScreen(vm: RadioViewModel) {
                 item {
                     Text(
                         "Kein Radio gefunden. Handy und Radio müssen im selben WLAN sein. " +
-                            "Du kannst oben neu suchen oder die IP-Adresse unten eingeben.",
+                            "Du kannst oben neu suchen oder die IP-Adresse unten eingeben. " +
+                            "Ein neues Radio bringst du mit „Neues Radio einrichten“ ins WLAN.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -114,6 +120,14 @@ fun DevicesScreen(vm: RadioViewModel) {
                             )
                         }
                     }
+                }
+            }
+
+            item {
+                FilledTonalButton(onClick = onSetup, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Neues Radio einrichten")
                 }
             }
 

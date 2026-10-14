@@ -15,7 +15,22 @@ import java.net.URLEncoder
 /** Fehler beim Sprechen mit dem Radio (z. B. falsche PIN). */
 class FsApiException(message: String) : IOException(message)
 
-data class FsItem(val key: Int, val fields: Map<String, String>)
+/** Eintrag einer Liste; [types] merkt sich den Datentyp je Feld (z. B. "c8_array", "u8", "array"). */
+data class FsItem(val key: Int, val fields: Map<String, String>, val types: Map<String, String> = emptyMap()) {
+
+    /** Feld als Text. Byte-Arrays (z. B. WLAN-Namen) liefert das Radio hex-kodiert. */
+    fun text(name: String): String {
+        val raw = fields[name]?.trim().orEmpty()
+        if (types[name] != "array") return raw
+        val bytes = hexToBytes(raw) ?: return raw
+        return String(bytes, Charsets.UTF_8).trimEnd('\u0000')
+    }
+}
+
+internal fun hexToBytes(hex: String): ByteArray? {
+    if (hex.length % 2 != 0 || hex.any { Character.digit(it, 16) < 0 }) return null
+    return ByteArray(hex.length / 2) { i -> hex.substring(2 * i, 2 * i + 2).toInt(16).toByte() }
+}
 
 private data class FsResponse(
     val status: String,
@@ -49,6 +64,18 @@ object Nodes {
 
     /** Wert eines Bands im eigenen Equalizer („My EQ“), meist 0 = Bass, 1 = Höhen. */
     fun eqCustom(index: Int) = "netRemote.sys.audio.eqCustom.param$index"
+
+    // Ersteinrichtung (nur im Setup-Modus des Radios sinnvoll)
+    const val WLAN_SCAN = "netRemote.sys.net.wlan.scan"
+    const val WLAN_SCAN_LIST = "netRemote.sys.net.wlan.scanList"
+    const val WLAN_SELECT_AP = "netRemote.sys.net.wlan.selectAP"
+    const val WLAN_SET_SSID = "netRemote.sys.net.wlan.setSSID"
+    const val WLAN_SET_AUTH_TYPE = "netRemote.sys.net.wlan.setAuthType"
+    const val WLAN_SET_ENC_TYPE = "netRemote.sys.net.wlan.setEncType"
+    const val WLAN_SET_PASSPHRASE = "netRemote.sys.net.wlan.setPassphrase"
+    const val NET_COMMIT = "netRemote.sys.net.commitChanges"
+    const val RSA_STATUS = "netRemote.sys.rsa.status"
+    const val RSA_PUBLIC_KEY = "netRemote.sys.rsa.publicKey"
 }
 
 /**
@@ -119,6 +146,7 @@ class FsApiClient(host: String, private val pin: String) {
 
         var itemKey: Int? = null
         var fields = mutableMapOf<String, String>()
+        var types = mutableMapOf<String, String>()
         var fieldName: String? = null
         var inValue = false
         val path = ArrayDeque<String>()
@@ -130,11 +158,13 @@ class FsApiClient(host: String, private val pin: String) {
                         "item" -> {
                             itemKey = p.getAttributeValue(null, "key")?.toIntOrNull() ?: -1
                             fields = mutableMapOf()
+                            types = mutableMapOf()
                         }
                         "field" -> fieldName = p.getAttributeValue(null, "name")
                         "listend" -> listEnd = true
                         "value" -> inValue = true
                     }
+                    fieldName?.let { if (p.name != "field") types[it] = p.name }
                     path.addLast(p.name)
                 }
 
@@ -152,7 +182,7 @@ class FsApiClient(host: String, private val pin: String) {
                 XmlPullParser.END_TAG -> {
                     when (p.name) {
                         "item" -> {
-                            items += FsItem(itemKey ?: -1, fields)
+                            items += FsItem(itemKey ?: -1, fields, types)
                             itemKey = null
                         }
                         "field" -> fieldName = null

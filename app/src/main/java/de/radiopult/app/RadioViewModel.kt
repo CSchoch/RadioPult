@@ -92,6 +92,11 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun savedPin(host: String): String = prefs.getString("pin_$host", "1234") ?: "1234"
 
+    /** Nach der Ersteinrichtung: neues Radio vorn in die Liste. */
+    fun addDevice(device: RadioDevice) {
+        devices = (listOf(device) + devices).distinctBy { it.host }
+    }
+
     fun clearError() {
         connectError = null
     }
