@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
@@ -75,6 +76,7 @@ import kotlin.math.roundToInt
 @Composable
 fun RemoteScreen(vm: RadioViewModel) {
     val s = vm.ui
+    var showEq by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -91,6 +93,14 @@ fun RemoteScreen(vm: RadioViewModel) {
                     }
                 },
                 actions = {
+                    if (s.connected && s.power) {
+                        IconButton(onClick = {
+                            showEq = true
+                            vm.loadEqualizer()
+                        }) {
+                            Icon(Icons.Filled.Equalizer, contentDescription = "Equalizer")
+                        }
+                    }
                     IconButton(onClick = vm::togglePower) {
                         Icon(
                             Icons.Filled.PowerSettingsNew,
@@ -130,6 +140,17 @@ fun RemoteScreen(vm: RadioViewModel) {
             }
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    if (showEq) {
+        EqualizerSheet(
+            eq = vm.eq,
+            onDismiss = { showEq = false },
+            onRetry = vm::loadEqualizer,
+            onPreset = vm::selectEqPreset,
+            onBand = vm::setEqBand,
+            onLoudness = vm::toggleLoudness,
+        )
     }
 }
 

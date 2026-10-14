@@ -39,6 +39,26 @@ data class RadioUi(
     val presets: List<Preset> = emptyList(),
 )
 
+data class EqPreset(val key: Int, val label: String)
+data class EqBand(val index: Int, val label: String, val min: Int, val max: Int, val value: Int = 0)
+
+data class EqualizerUi(
+    val loading: Boolean = false,
+    val loaded: Boolean = false,
+    val presets: List<EqPreset> = emptyList(),
+    val presetKey: Int? = null,
+    val customKey: Int? = null,
+    val bands: List<EqBand> = emptyList(),
+    val loudness: Boolean? = null,
+) {
+    val available get() = presets.isNotEmpty() || bands.isNotEmpty() || loudness != null
+
+    /** Bänder und Loudness wirken nur im eigenen Preset („My EQ“) – falls das Radio eines hat. */
+    val customActive get() = customKey == null || customKey == presetKey
+}
+
+private val CUSTOM_EQ = Regex("my ?eq|mein|eigen|benutzer|custom|user", RegexOption.IGNORE_CASE)
+
 class RadioViewModel(app: Application) : AndroidViewModel(app) {
 
     private val prefs = app.getSharedPreferences("radiopult", Context.MODE_PRIVATE)
@@ -54,6 +74,8 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     var current by mutableStateOf<RadioDevice?>(null)
         private set
     var ui by mutableStateOf(RadioUi())
+        private set
+    var eq by mutableStateOf(EqualizerUi())
         private set
 
     private var client: FsApiClient? = null
@@ -107,6 +129,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 client = c
                 presetsForMode = null
                 ui = RadioUi(name = name)
+                eq = EqualizerUi()
                 loadCapabilities(c)
                 current = dev
                 startPolling()
@@ -128,6 +151,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         client = null
         current = null
         ui = RadioUi()
+        eq = EqualizerUi()
     }
 
     fun onVisible() {
@@ -271,5 +295,83 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     fun selectPreset(preset: Preset) = command {
         it.set(Nodes.NAV_STATE, "1")
         it.set(Nodes.SELECT_PRESET, preset.key.toString())
+    }
+
+    fun loadEqualizer() {
+        val c = client ?: return
+        if (eq.loading) return
+        eq = eq.copy(loading = true)
+        viewModelScope.launch {
+            try {
+                val base = if (eq.loaded) eq else loadEqCapabilities(c)
+                val state = readEqState(c, base)
+                if (client === c) eq = state
+            } catch (e: IOException) {
+                ui = ui.copy(error = e.message ?: "Equalizer konnte nicht geladen werden")
+            } finally {
+                if (client === c) eq = eq.copy(loading = false)
+            }
+        }
+    }
+
+    private suspend fun loadEqCapabilities(c: FsApiClient): EqualizerUi {
+        val presets = c.list(Nodes.EQ_PRESETS).map { item ->
+            EqPreset(item.key, item.fields["label"]?.trim().orEmpty().ifEmpty { "EQ ${item.key + 1}" })
+        }
+        var bands = c.list(Nodes.EQ_BANDS).map { item ->
+            EqBand(
+                index = item.key,
+                label = item.fields["label"]?.trim().orEmpty().ifEmpty { "Band ${item.key + 1}" },
+                min = item.fields["min"]?.trim()?.toIntOrNull() ?: -14,
+                max = item.fields["max"]?.trim()?.toIntOrNull() ?: 14,
+            )
+        }.filter { it.max > it.min }
+        if (bands.isEmpty()) {
+            // manche Geräte nennen ihre Bänder nicht – Bass und Höhen haben sie trotzdem
+            bands = listOf("Bass", "Höhen").mapIndexedNotNull { i, label ->
+                if (c.get(Nodes.eqCustom(i)) != null) EqBand(i, label, -14, 14) else null
+            }
+        }
+        val customKey = presets.firstOrNull { CUSTOM_EQ.containsMatchIn(it.label) }?.key
+        return EqualizerUi(loaded = true, presets = presets, customKey = customKey, bands = bands)
+    }
+
+    private suspend fun readEqState(c: FsApiClient, base: EqualizerUi): EqualizerUi = base.copy(
+        presetKey = if (base.presets.isEmpty()) null else c.get(Nodes.EQ_PRESET)?.trim()?.toIntOrNull(),
+        bands = base.bands.map { band ->
+            band.copy(value = c.get(Nodes.eqCustom(band.index))?.trim()?.toIntOrNull() ?: band.value)
+        },
+        loudness = c.get(Nodes.EQ_LOUDNESS)?.trim()?.let { it == "1" },
+    )
+
+    private fun eqCommand(block: suspend (FsApiClient) -> Unit) {
+        val c = client ?: return
+        viewModelScope.launch {
+            try {
+                block(c)
+                val state = readEqState(c, eq)
+                if (client === c) eq = state.copy(loading = eq.loading)
+            } catch (e: IOException) {
+                ui = ui.copy(error = e.message ?: "Befehl fehlgeschlagen")
+            }
+        }
+    }
+
+    fun selectEqPreset(preset: EqPreset) {
+        eq = eq.copy(presetKey = preset.key)
+        eqCommand { it.set(Nodes.EQ_PRESET, preset.key.toString()) }
+    }
+
+    fun setEqBand(index: Int, value: Int) {
+        val band = eq.bands.firstOrNull { it.index == index } ?: return
+        val v = value.coerceIn(band.min, band.max)
+        eq = eq.copy(bands = eq.bands.map { if (it.index == index) it.copy(value = v) else it })
+        eqCommand { it.set(Nodes.eqCustom(index), v.toString()) }
+    }
+
+    fun toggleLoudness() {
+        val on = eq.loudness != true
+        eq = eq.copy(loudness = on)
+        eqCommand { it.set(Nodes.EQ_LOUDNESS, if (on) "1" else "0") }
     }
 }

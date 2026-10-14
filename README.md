@@ -11,9 +11,10 @@ Eigene Android-Fernbedienung für WLAN-Radios mit Frontier-Silicon-Modul (die Ge
 - Play/Pause, Vor/Zurück
 - Anzeige von Sender, Titel/Info-Text und Senderlogo
 - Favoriten (Presets) der aktuellen Quelle anzeigen und abrufen
+- Equalizer: Klang-Preset wählen (Normal, Jazz, Rock …), im eigenen Preset („My EQ“) Bass/Höhen und Loudness einstellen
 - Merkt sich das zuletzt genutzte Radio und die PIN
 
-Nicht enthalten (im Vergleich zu UNDOK): Ersteinrichtung des Radios ins WLAN, Multiroom, Equalizer, Wecker/Sleep-Timer, Durchsuchen der Internetradio-Senderliste, Spotify/Streamingdienste.
+Nicht enthalten (im Vergleich zu UNDOK): Ersteinrichtung des Radios ins WLAN, Multiroom, Wecker/Sleep-Timer, Durchsuchen der Internetradio-Senderliste, Spotify/Streamingdienste.
 
 ## So baust du die App
 
@@ -38,4 +39,4 @@ Nicht enthalten (im Vergleich zu UNDOK): Ersteinrichtung des Radios ins WLAN, Mu
   - `fsapi/FsApiClient.kt` – Schnittstelle zum Radio
   - `fsapi/Discovery.kt` – Gerätesuche
   - `RadioViewModel.kt` – Zustand und Befehle
-  - `ui/` – Bildschirme
+  - `ui/` – Bildschirme (`ui/EqualizerSheet.kt` – Equalizer)

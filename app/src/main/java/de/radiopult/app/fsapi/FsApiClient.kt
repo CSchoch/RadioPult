@@ -42,6 +42,13 @@ object Nodes {
     const val NAV_STATE = "netRemote.nav.state"
     const val PRESETS = "netRemote.nav.presets"
     const val SELECT_PRESET = "netRemote.nav.action.selectPreset"
+    const val EQ_PRESETS = "netRemote.sys.caps.eqPresets"
+    const val EQ_BANDS = "netRemote.sys.caps.eqBands"
+    const val EQ_PRESET = "netRemote.sys.audio.eqPreset"
+    const val EQ_LOUDNESS = "netRemote.sys.audio.eqLoudness"
+
+    /** Wert eines Bands im eigenen Equalizer („My EQ“), meist 0 = Bass, 1 = Höhen. */
+    fun eqCustom(index: Int) = "netRemote.sys.audio.eqCustom.param$index"
 }
 
 /**
