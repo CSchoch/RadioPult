@@ -132,6 +132,10 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var connectError by mutableStateOf<String?>(null)
         private set
+
+    /** Das Radio, mit dem gerade verbunden wird. */
+    var connectingHost by mutableStateOf<String?>(null)
+        private set
     var current by mutableStateOf<RadioDevice?>(null)
         private set
     var ui by mutableStateOf(RadioUi())
@@ -151,10 +155,14 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     private var pollJob: Job? = null
     private var visible = false
     private var presetsForMode: Int? = null
+    private var browseJob: Job? = null
 
     init {
         prefs.getString("last_host", null)?.let { host ->
-            devices = listOf(RadioDevice(host, prefs.getString("last_name", host) ?: host))
+            val last = RadioDevice(host, prefs.getString("last_name", host) ?: host)
+            devices = listOf(last)
+            // Beim Start gleich mit dem zuletzt genutzten Radio verbinden; klappt das nicht, bleibt die Liste.
+            if (hasSavedPin(host)) connect(last, savedPin(host)) { connectError = null }
         }
         scan()
     }
@@ -193,6 +201,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         if (connecting) return
         viewModelScope.launch {
             connecting = true
+            connectingHost = device.host
             connectError = null
             val c = FsApiClient(device.host, pin)
             try {
@@ -223,6 +232,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 onFailed()
             } finally {
                 connecting = false
+                connectingHost = null
             }
         }
     }
@@ -517,7 +527,6 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Sender-/Titelliste ----
 
-    private var browseJob: Job? = null
 
     private fun browseTask(block: suspend (FsApiClient) -> Unit) {
         val c = client ?: return

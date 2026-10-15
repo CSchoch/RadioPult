@@ -53,14 +53,12 @@ import de.radiopult.app.fsapi.RadioDevice
 @Composable
 fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
     var pinFor by remember { mutableStateOf<RadioDevice?>(null) }
-    var quickFor by remember { mutableStateOf<String?>(null) }
     var manualIp by rememberSaveable { mutableStateOf("") }
 
     /** Mit gespeicherter PIN direkt verbinden; nur beim ersten Mal oder wenn es nicht klappt nach der PIN fragen. */
     fun open(device: RadioDevice) {
         vm.clearError()
         if (vm.hasSavedPin(device.host)) {
-            quickFor = device.host
             vm.connect(device, vm.savedPin(device.host)) { pinFor = device }
         } else {
             pinFor = device
@@ -137,7 +135,7 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        if (vm.connecting && quickFor == device.host && pinFor == null) {
+                        if (vm.connectingHost == device.host && pinFor == null) {
                             CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
                         }
                     }
@@ -200,10 +198,7 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
                 pinFor = null
                 vm.clearError()
             },
-            onConnect = { pin ->
-                quickFor = null
-                vm.connect(device, pin)
-            },
+            onConnect = { pin -> vm.connect(device, pin) },
         )
     }
 }
