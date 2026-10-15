@@ -27,7 +27,7 @@ Nicht enthalten (im Vergleich zu UNDOK): Einrichtung per WPS oder LAN-Kabel, Mul
 3. Warten, bis der „Gradle Sync“ fertig ist (lädt beim ersten Mal einiges herunter). Falls Android Studio ein Upgrade des Android-Gradle-Plugins vorschlägt, kannst du das ablehnen.
 4. Entweder:
    - **Direkt aufs Handy:** Am Handy die Entwickleroptionen und USB-Debugging aktivieren, per USB verbinden, oben das Gerät wählen und auf ▶ **Run** tippen.
-   - **Als APK-Datei:** **Build › Build App Bundle(s) / APK(s) › Build APK(s)**. Die Datei liegt danach unter `app/build/outputs/apk/debug/app-debug.apk`. Aufs Handy kopieren und öffnen (Installation aus unbekannten Quellen erlauben).
+   - **Als APK-Datei:** **Build › Build App Bundle(s) / APK(s) › Build APK(s)**. Die Datei liegt danach unter `app/build/outputs/apk/debug/app-debug.apk` (installiert sich als „RadioPult Test“ neben der Release-App). Aufs Handy kopieren und öffnen (Installation aus unbekannten Quellen erlauben).
 
 ## Verbinden
 
@@ -74,4 +74,6 @@ base64 -w0 radiopult.jks   # Ausgabe -> RADIOPULT_KEYSTORE_BASE64
 | `RADIOPULT_KEY_ALIAS` | Alias, z. B. `radiopult` |
 | `RADIOPULT_KEY_PASSWORD` | Schlüssel-Passwort |
 
-Ohne diese Secrets wird das APK mit einem wechselnden Debug-Schlüssel signiert: installierbar, aber Updates erfordern vorher eine Deinstallation.
+Ohne diese Secrets bricht der Workflow ab, statt ein APK mit wechselndem Schlüssel zu veröffentlichen, das sich nicht über die installierte App aktualisieren lässt. Die Keystore-Datei und die Passwörter gut aufbewahren: Mit einem neuen Schlüssel muss die App einmal deinstalliert werden (dabei gehen die gespeicherten PINs verloren).
+
+Test-Builds (`assembleDebug`) werden mit dem eingecheckten `app/debug.keystore` signiert und als eigene App „RadioPult Test“ (`de.radiopult.app.debug`) installiert. Sie lassen sich untereinander aktualisieren, egal wo sie gebaut wurden, und kommen der Release-App nicht in die Quere.

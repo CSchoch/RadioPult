@@ -21,6 +21,14 @@ android {
     // Without them the release build falls back to the debug key so it is still installable.
     val releaseKeystore = System.getenv("RADIOPULT_KEYSTORE_FILE")?.let { file(it) }
     signingConfigs {
+        // Debug builds use the keystore checked into the repo instead of the per-machine
+        // ~/.android/debug.keystore, so test APKs built anywhere install over each other.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (releaseKeystore != null && releaseKeystore.exists()) {
             create("release") {
                 storeFile = releaseKeystore
@@ -32,6 +40,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Separate app next to the released one, so test builds never block release updates
+            applicationIdSuffix = ".debug"
+        }
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
