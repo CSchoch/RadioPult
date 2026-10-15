@@ -132,6 +132,10 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var connectError by mutableStateOf<String?>(null)
         private set
+
+    /** Das Radio, mit dem gerade verbunden wird. */
+    var connectingHost by mutableStateOf<String?>(null)
+        private set
     var current by mutableStateOf<RadioDevice?>(null)
         private set
     var ui by mutableStateOf(RadioUi())
@@ -151,15 +155,22 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     private var pollJob: Job? = null
     private var visible = false
     private var presetsForMode: Int? = null
+    private var browseJob: Job? = null
 
     init {
         prefs.getString("last_host", null)?.let { host ->
-            devices = listOf(RadioDevice(host, prefs.getString("last_name", host) ?: host))
+            val last = RadioDevice(host, prefs.getString("last_name", host) ?: host)
+            devices = listOf(last)
+            // Beim Start gleich mit dem zuletzt genutzten Radio verbinden; klappt das nicht, bleibt die Liste.
+            if (hasSavedPin(host)) connect(last, savedPin(host)) { connectError = null }
         }
         scan()
     }
 
     fun savedPin(host: String): String = prefs.getString("pin_$host", "1234") ?: "1234"
+
+    /** Wurde mit diesem Radio schon einmal erfolgreich verbunden, ist seine PIN gespeichert. */
+    fun hasSavedPin(host: String): Boolean = prefs.contains("pin_$host")
 
     /** Nach der Ersteinrichtung: neues Radio vorn in die Liste. */
     fun addDevice(device: RadioDevice) {
@@ -185,10 +196,12 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun connect(device: RadioDevice, pin: String) {
+    /** [onFailed] läuft, wenn die Verbindung nicht klappt (z. B. gespeicherte PIN stimmt nicht mehr). */
+    fun connect(device: RadioDevice, pin: String, onFailed: () -> Unit = {}) {
         if (connecting) return
         viewModelScope.launch {
             connecting = true
+            connectingHost = device.host
             connectError = null
             val c = FsApiClient(device.host, pin)
             try {
@@ -213,10 +226,13 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 connectError = if (e.message == "PIN falsch") {
                     "Die PIN stimmt nicht. Du findest sie am Radio unter Netzwerk › NetRemote PIN."
                 } else e.message
+                onFailed()
             } catch (ignored: IOException) {
                 connectError = "Radio unter ${device.host} nicht erreichbar. Ist es eingeschaltet und im selben WLAN?"
+                onFailed()
             } finally {
                 connecting = false
+                connectingHost = null
             }
         }
     }
@@ -510,8 +526,6 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---- Sender-/Titelliste ----
-
-    private var browseJob: Job? = null
 
     private fun browseTask(block: suspend (FsApiClient) -> Unit) {
         val c = client ?: return
