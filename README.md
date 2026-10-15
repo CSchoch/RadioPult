@@ -12,10 +12,13 @@ Eigene Android-Fernbedienung für WLAN-Radios mit Frontier-Silicon-Modul (die Ge
 - Play/Pause, Vor/Zurück
 - Anzeige von Sender, Titel/Info-Text und Senderlogo
 - Favoriten (Presets) der aktuellen Quelle anzeigen und abrufen
+- Favoriten bearbeiten: aktuellen Sender auf einem Platz speichern, löschen, Reihenfolge ändern
+- Senderliste für Internetradio und DAB (inkl. Suche und DAB-Sendersuchlauf), Titelliste für CD, Durchsuchen von USB/Musik
+- Einstellungen: Geräteinfos (Modell, Firmware, IP, MAC, WLAN und Signalstärke), Radio umbenennen, Sprache, Sleep-Timer, Datum & Uhrzeit (12/24 Stunden, Zeitquelle), Werkseinstellungen
 - Equalizer: Klang-Preset wählen (Normal, Jazz, Rock …), im eigenen Preset („My EQ“) Bass/Höhen und Loudness einstellen
 - Merkt sich das zuletzt genutzte Radio und die PIN
 
-Nicht enthalten (im Vergleich zu UNDOK): Einrichtung per WPS oder LAN-Kabel, Multiroom, Wecker/Sleep-Timer, Durchsuchen der Internetradio-Senderliste, Spotify/Streamingdienste.
+Nicht enthalten (im Vergleich zu UNDOK): Einrichtung per WPS oder LAN-Kabel, Multiroom, Wecker, Spotify/Streamingdienste.
 
 ## So baust du die App
 
@@ -43,7 +46,8 @@ Nicht enthalten (im Vergleich zu UNDOK): Einrichtung per WPS oder LAN-Kabel, Mul
   - `fsapi/RadioSetup.kt` – Ersteinrichtung (WLAN-Suche, Passwort-Verschlüsselung)
   - `setup/` – Setup-WLAN und Ablauf der Einrichtung
   - `RadioViewModel.kt` – Zustand und Befehle
-  - `ui/` – Bildschirme (`ui/EqualizerSheet.kt` – Equalizer)
+  - `fsapi/Values.kt` – Rohwerte des Radios lesbar machen (IP-Adresse, Sprachen, Zeitquellen)
+  - `ui/` – Bildschirme (`EqualizerSheet.kt` – Equalizer, `SettingsScreens.kt` – Einstellungen, `FavoritesScreen.kt` – Favoriten bearbeiten, `BrowseScreen.kt` – Sender-/Titelliste)
 
 ## Releases (APK automatisch bauen)
 

@@ -12,14 +12,37 @@ import de.radiopult.app.fsapi.FsApiClient
 import de.radiopult.app.fsapi.FsApiException
 import de.radiopult.app.fsapi.Nodes
 import de.radiopult.app.fsapi.RadioDevice
+import de.radiopult.app.fsapi.Values
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.IOException
 
-data class Mode(val key: Int, val label: String)
-data class Preset(val key: Int, val name: String)
+data class Mode(val key: Int, val label: String, val id: String = "") {
+
+    /** Quellen ohne Liste (UKW, AUX, Bluetooth …) bekommen keine Sender-/Titelliste. */
+    val browsable: Boolean
+        get() {
+            val i = id.uppercase()
+            return i != "FM" && NOT_BROWSABLE.none { i.contains(it) }
+        }
+
+    /** Überschrift der Liste dieser Quelle. */
+    val listTitle: String
+        get() = when (id.uppercase()) {
+            "IR", "DAB" -> "Senderliste"
+            "CD" -> "Titelliste"
+            else -> label.ifEmpty { "Durchsuchen" }
+        }
+}
+
+private val NOT_BROWSABLE = listOf("AUX", "BLUETOOTH", "SPDIF", "OPTICAL", "LINE", "SPOTIFY", "AIRPLAY", "HDMI", "DMR")
+
+/** Speicherplatz für einen Favoriten; [name] ist leer, wenn der Platz frei ist. */
+data class Preset(val key: Int, val name: String) {
+    val empty get() = name.isEmpty()
+}
 
 data class RadioUi(
     val connected: Boolean = false,
@@ -37,6 +60,44 @@ data class RadioUi(
     val playing: Boolean = false,
     val coverUrl: String? = null,
     val presets: List<Preset> = emptyList(),
+) {
+    val mode get() = modes.firstOrNull { it.key == modeKey }
+}
+
+/** Eintrag der Sender-/Titelliste: Ordner, Abspielbares oder Suche. */
+data class NavItem(val key: Int, val name: String, val type: Int) {
+    val folder get() = type == 0
+    val search get() = type == 2
+}
+
+data class BrowseUi(
+    val loading: Boolean = false,
+    val scanning: Boolean = false,
+    val path: List<String> = emptyList(),
+    val items: List<NavItem> = emptyList(),
+    val error: String? = null,
+)
+
+data class Choice(val key: Int, val label: String)
+
+data class SettingsUi(
+    val loading: Boolean = false,
+    val loaded: Boolean = false,
+    val model: String? = null,
+    val version: String? = null,
+    val ip: String? = null,
+    val mac: String? = null,
+    val network: String? = null,
+    val signal: Int? = null,
+    val languages: List<Choice> = emptyList(),
+    val languageKey: Int? = null,
+    /** Schlummer-Restzeit in Sekunden; null = vom Radio nicht unterstützt. */
+    val sleepSeconds: Int? = null,
+    val clock24: Boolean? = null,
+    val clockSources: List<Choice> = emptyList(),
+    val clockSourceKey: Int? = null,
+    /** Rohname der Zeitquellen (DAB, FM, NETWORK, NO_UPDATE …) je Schlüssel. */
+    val clockSourceIds: Map<Int, String> = emptyMap(),
 )
 
 data class EqPreset(val key: Int, val label: String)
@@ -76,6 +137,14 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     var ui by mutableStateOf(RadioUi())
         private set
     var eq by mutableStateOf(EqualizerUi())
+        private set
+    var browse by mutableStateOf(BrowseUi())
+        private set
+    var settings by mutableStateOf(SettingsUi())
+        private set
+
+    /** Kurze Rückmeldung für die Unterseiten (Snackbar); [consumeNotice] löscht sie. */
+    var notice by mutableStateOf<String?>(null)
         private set
 
     private var client: FsApiClient? = null
@@ -135,6 +204,8 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 presetsForMode = null
                 ui = RadioUi(name = name)
                 eq = EqualizerUi()
+                browse = BrowseUi()
+                settings = SettingsUi()
                 loadCapabilities(c)
                 current = dev
                 startPolling()
@@ -157,6 +228,12 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         current = null
         ui = RadioUi()
         eq = EqualizerUi()
+        browse = BrowseUi()
+        settings = SettingsUi()
+    }
+
+    fun consumeNotice() {
+        notice = null
     }
 
     fun onVisible() {
@@ -188,7 +265,8 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 .filter { it.fields["selectable"]?.trim() != "0" }
                 .map { item ->
                     val label = item.fields["label"]?.trim().orEmpty()
-                    Mode(item.key, label.ifEmpty { item.fields["id"]?.trim().orEmpty() })
+                    val id = item.fields["id"]?.trim().orEmpty()
+                    Mode(item.key, label.ifEmpty { id }, id)
                 }
         } catch (ignored: IOException) {
             emptyList()
@@ -200,10 +278,8 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         presetsForMode = mode
         return try {
             c.set(Nodes.NAV_STATE, "1")
-            c.list(Nodes.PRESETS).mapNotNull { item ->
-                val name = item.fields["name"]?.trim().orEmpty()
-                if (name.isEmpty()) null else Preset(item.key, name)
-            }
+            // auch freie Plätze behalten – dort kann ein Sender gespeichert werden
+            c.list(Nodes.PRESETS).map { item -> Preset(item.key, item.text("name")) }
         } catch (ignored: IOException) {
             presetsForMode = null // beim nächsten Durchlauf erneut versuchen
             emptyList()
@@ -378,5 +454,298 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         val on = eq.loudness != true
         eq = eq.copy(loudness = on)
         eqCommand { it.set(Nodes.EQ_LOUDNESS, if (on) "1" else "0") }
+    }
+
+    // ---- Favoriten bearbeiten ----
+
+    /** Aktuellen Sender auf diesem Speicherplatz ablegen. */
+    fun storePreset(slot: Preset) = presetCommand("Sender auf Platz ${slot.key + 1} gespeichert") {
+        it.set(Nodes.ADD_PRESET, slot.key.toString())
+    }
+
+    fun deletePreset(slot: Preset) {
+        ui = ui.copy(presets = ui.presets.map { if (it.key == slot.key) it.copy(name = "") else it })
+        presetCommand("Favorit ${slot.key + 1} gelöscht") {
+            it.set(Nodes.NAV_STATE, "1")
+            it.set(Nodes.PRESET_DELETE, slot.key.toString())
+        }
+    }
+
+    /** Favorit um eine Position nach oben (-1) oder unten (+1) verschieben. */
+    fun movePreset(slot: Preset, delta: Int) {
+        val list = ui.presets
+        val i = list.indexOfFirst { it.key == slot.key }
+        val j = i + delta
+        if (i < 0 || j !in list.indices) return
+        val other = list[j]
+        ui = ui.copy(presets = list.map {
+            when (it.key) {
+                slot.key -> it.copy(name = other.name)
+                other.key -> it.copy(name = slot.name)
+                else -> it
+            }
+        })
+        presetCommand(null) {
+            it.set(Nodes.NAV_STATE, "1")
+            it.set(Nodes.PRESET_SWAP_1, slot.key.toString()) &&
+                it.set(Nodes.PRESET_SWAP_2, other.key.toString()) &&
+                it.set(Nodes.PRESET_SWAP, "1")
+        }
+    }
+
+    private fun presetCommand(done: String?, block: suspend (FsApiClient) -> Boolean) {
+        val c = client ?: return
+        viewModelScope.launch {
+            try {
+                val ok = block(c)
+                delay(400) // das Radio braucht einen Moment, bis die Liste neu ist
+                presetsForMode = null
+                refresh()
+                notice = if (ok) done else "Das Radio hat die Änderung abgelehnt."
+            } catch (e: IOException) {
+                presetsForMode = null
+                notice = e.message ?: "Befehl fehlgeschlagen"
+            }
+        }
+    }
+
+    // ---- Sender-/Titelliste ----
+
+    private var browseJob: Job? = null
+
+    private fun browseTask(block: suspend (FsApiClient) -> Unit) {
+        val c = client ?: return
+        browseJob?.cancel()
+        browseJob = viewModelScope.launch {
+            browse = browse.copy(loading = true, error = null)
+            try {
+                block(c)
+            } catch (e: IOException) {
+                if (client === c) browse = browse.copy(error = e.message ?: "Liste konnte nicht geladen werden")
+            } finally {
+                if (client === c) browse = browse.copy(loading = false)
+            }
+        }
+    }
+
+    /** Wartet, bis das Radio die Liste fertig aufgebaut hat. */
+    private suspend fun awaitNav(c: FsApiClient, maxMs: Long = 10_000) {
+        val end = System.currentTimeMillis() + maxMs
+        while (System.currentTimeMillis() < end) {
+            val status = c.get(Nodes.NAV_STATUS)?.trim() ?: return // Knoten fehlt: nicht warten
+            if (status == "1") return
+            delay(300)
+        }
+    }
+
+    private suspend fun readNavList(c: FsApiClient): List<NavItem> {
+        awaitNav(c)
+        return c.list(Nodes.NAV_LIST).mapNotNull { item ->
+            val name = item.text("name")
+            if (name.isEmpty()) null
+            else NavItem(item.key, name, item.fields["type"]?.trim()?.toIntOrNull() ?: 1)
+        }
+    }
+
+    /** Liste der aktuellen Quelle von oben öffnen. */
+    fun openBrowser() = browseTask { c ->
+        browse = BrowseUi(loading = true)
+        c.set(Nodes.NAV_STATE, "0") // setzt die Position auf die oberste Ebene zurück
+        c.set(Nodes.NAV_STATE, "1")
+        browse = browse.copy(items = readNavList(c))
+    }
+
+    fun openItem(item: NavItem) {
+        when {
+            item.folder -> browseTask { c ->
+                if (!c.set(Nodes.NAV_NAVIGATE, item.key.toString())) {
+                    browse = browse.copy(error = "„${item.name}“ lässt sich nicht öffnen.")
+                    return@browseTask
+                }
+                browse = browse.copy(path = browse.path + item.name, items = readNavList(c))
+            }
+
+            else -> command { c ->
+                c.set(Nodes.NAV_SELECT_ITEM, item.key.toString())
+                notice = "Spiele „${item.name}“"
+            }
+        }
+    }
+
+    fun search(item: NavItem, term: String) = browseTask { c ->
+        c.set(Nodes.NAV_SEARCH_TERM, term)
+        if (!c.set(Nodes.NAV_NAVIGATE, item.key.toString())) {
+            browse = browse.copy(error = "Die Suche wird nicht unterstützt.")
+            return@browseTask
+        }
+        browse = browse.copy(path = browse.path + "„$term“", items = readNavList(c))
+    }
+
+    /** Eine Ebene zurück; false, wenn schon oben (dann schließt die Liste). */
+    fun browseUp(): Boolean {
+        if (browse.path.isEmpty()) return false
+        browseTask { c ->
+            c.set(Nodes.NAV_NAVIGATE, "-1")
+            browse = browse.copy(path = browse.path.dropLast(1), items = readNavList(c))
+        }
+        return true
+    }
+
+    /** DAB-Sendersuchlauf starten und danach die Liste neu laden. */
+    fun dabScan() = browseTask { c ->
+        if (!c.set(Nodes.NAV_DAB_SCAN, "1")) {
+            browse = browse.copy(error = "Der Sendersuchlauf wird nicht unterstützt.")
+            return@browseTask
+        }
+        browse = browse.copy(scanning = true, path = emptyList(), items = emptyList())
+        try {
+            delay(2000)
+            val end = System.currentTimeMillis() + 180_000
+            while (System.currentTimeMillis() < end) {
+                val scanning = c.get(Nodes.NAV_DAB_SCAN)?.trim() == "1"
+                val ready = c.get(Nodes.NAV_STATUS)?.trim() != "0"
+                if (!scanning && ready) break
+                delay(1500)
+            }
+        } finally {
+            browse = browse.copy(scanning = false)
+        }
+        c.set(Nodes.NAV_STATE, "0")
+        c.set(Nodes.NAV_STATE, "1")
+        browse = browse.copy(items = readNavList(c))
+    }
+
+    // ---- Einstellungen ----
+
+    fun loadSettings() {
+        val c = client ?: return
+        if (settings.loading) return
+        settings = settings.copy(loading = true)
+        viewModelScope.launch {
+            try {
+                val s = readSettings(c)
+                if (client === c) settings = s
+            } catch (e: IOException) {
+                notice = e.message ?: "Einstellungen konnten nicht geladen werden"
+            } finally {
+                if (client === c) settings = settings.copy(loading = false)
+            }
+        }
+    }
+
+    /** Nur die Restzeit des Sleep-Timers neu lesen. */
+    fun refreshSleep() {
+        val c = client ?: return
+        viewModelScope.launch {
+            try {
+                val sec = c.get(Nodes.SLEEP)?.trim()?.toIntOrNull()
+                if (client === c && sec != null) settings = settings.copy(sleepSeconds = sec)
+            } catch (ignored: IOException) {
+                // beim nächsten Mal erneut
+            }
+        }
+    }
+
+    private suspend fun readSettings(c: FsApiClient): SettingsUi {
+        val wlan = c.get(Nodes.WLAN_ENABLED)?.trim() != "0"
+        val languages = c.list(Nodes.VALID_LANGS).mapNotNull { item ->
+            val label = item.fields["langlabel"] ?: item.fields.values.firstOrNull()
+            label?.trim()?.takeIf { it.isNotEmpty() }?.let { Choice(item.key, Values.languageName(it)) }
+        }
+        val sourceItems = c.list(Nodes.CLOCK_SOURCES)
+        val sourceIds = sourceItems.associate { item ->
+            item.key to (item.fields["source"] ?: item.fields.values.firstOrNull()).orEmpty().trim()
+        }
+        return SettingsUi(
+            loaded = true,
+            model = c.get(Nodes.MODEL_NAME)?.trim()?.ifEmpty { null },
+            version = c.get(Nodes.VERSION)?.trim()?.ifEmpty { null },
+            ip = Values.ipAddress(c.get(Nodes.IP_ADDRESS)),
+            mac = c.get(if (wlan) Nodes.WLAN_MAC else Nodes.WIRED_MAC)?.trim()?.ifEmpty { null },
+            network = if (wlan) c.get(Nodes.WLAN_SSID)?.trim()?.ifEmpty { null }?.let { "$it (WLAN)" } else "LAN-Kabel",
+            signal = if (wlan) c.get(Nodes.WLAN_RSSI)?.trim()?.toIntOrNull()?.coerceIn(0, 100) else null,
+            languages = languages,
+            languageKey = c.get(Nodes.LANG)?.trim()?.toIntOrNull(),
+            sleepSeconds = c.get(Nodes.SLEEP)?.trim()?.toIntOrNull(),
+            clock24 = c.get(Nodes.CLOCK_MODE)?.trim()?.let { it == "1" },
+            clockSources = sourceIds.filterValues { it.isNotEmpty() }
+                .map { (key, id) -> Choice(key, Values.clockSourceName(id)) },
+            clockSourceKey = c.get(Nodes.CLOCK_SOURCE)?.trim()?.toIntOrNull(),
+            clockSourceIds = sourceIds,
+        )
+    }
+
+    private fun settingCommand(done: String?, block: suspend (FsApiClient) -> Boolean) {
+        val c = client ?: return
+        viewModelScope.launch {
+            try {
+                val ok = block(c)
+                if (client === c) settings = readSettings(c)
+                notice = if (ok) done else "Das Radio hat die Einstellung abgelehnt."
+            } catch (e: IOException) {
+                notice = e.message ?: "Befehl fehlgeschlagen"
+            }
+        }
+    }
+
+    fun rename(name: String) {
+        val n = name.trim()
+        if (n.isEmpty()) return
+        val c = client ?: return
+        viewModelScope.launch {
+            try {
+                if (!c.set(Nodes.FRIENDLY_NAME, n)) {
+                    notice = "Das Radio hat den Namen abgelehnt."
+                    return@launch
+                }
+                val dev = current ?: return@launch
+                prefs.edit().putString("last_name", n).apply()
+                ui = ui.copy(name = n)
+                current = dev.copy(name = n)
+                devices = devices.map { if (it.host == dev.host) it.copy(name = n) else it }
+                notice = "Umbenannt in „$n“"
+            } catch (e: IOException) {
+                notice = e.message ?: "Umbenennen fehlgeschlagen"
+            }
+        }
+    }
+
+    fun setLanguage(choice: Choice) {
+        settings = settings.copy(languageKey = choice.key)
+        settingCommand("Sprache: ${choice.label}") { it.set(Nodes.LANG, choice.key.toString()) }
+    }
+
+    fun setSleep(minutes: Int) {
+        settings = settings.copy(sleepSeconds = minutes * 60)
+        settingCommand(if (minutes == 0) "Sleep-Timer aus" else "Radio schaltet in $minutes Minuten ab") {
+            it.set(Nodes.SLEEP, (minutes * 60).toString())
+        }
+    }
+
+    fun setClock24(on: Boolean) {
+        settings = settings.copy(clock24 = on)
+        settingCommand(null) { it.set(Nodes.CLOCK_MODE, if (on) "1" else "0") }
+    }
+
+    fun setClockSource(choice: Choice) {
+        settings = settings.copy(clockSourceKey = choice.key)
+        settingCommand(null) { it.set(Nodes.CLOCK_SOURCE, choice.key.toString()) }
+    }
+
+    /** Setzt das Radio auf Werkseinstellungen zurück; danach ist es nicht mehr im WLAN. */
+    fun factoryReset() {
+        val c = client ?: return
+        viewModelScope.launch {
+            try {
+                if (c.set(Nodes.FACTORY_RESET, "1")) {
+                    disconnect()
+                } else {
+                    notice = "Das Radio lässt sich über die App nicht zurücksetzen."
+                }
+            } catch (e: IOException) {
+                // nach dem Zurücksetzen antwortet das Radio oft nicht mehr – das ist gewollt
+                disconnect()
+            }
+        }
     }
 }

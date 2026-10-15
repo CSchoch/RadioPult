@@ -23,13 +23,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Button
@@ -37,20 +40,26 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,12 +81,77 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Unterseiten der Fernbedienung. */
+private enum class Page { REMOTE, SETTINGS, LANGUAGE, SLEEP, CLOCK, FAVORITES, BROWSE }
+
 @Composable
 fun RemoteScreen(vm: RadioViewModel) {
-    val s = vm.ui
+    var page by rememberSaveable { mutableStateOf(Page.REMOTE) }
     var showEq by remember { mutableStateOf(false) }
+    val openEq = {
+        showEq = true
+        vm.loadEqualizer()
+    }
+    // nach dem Trennen oder im Standby zurück zur Fernbedienung
+    val s = vm.ui
+    val available = s.connected && s.power
+    LaunchedEffect(available) { if (!available && page != Page.SETTINGS) page = Page.REMOTE }
+
+    when (page) {
+        Page.REMOTE -> RemoteMain(
+            vm,
+            onEqualizer = openEq,
+            onSettings = { page = Page.SETTINGS },
+            onFavorites = { page = Page.FAVORITES },
+            onBrowse = { page = Page.BROWSE },
+        )
+        Page.SETTINGS -> SettingsScreen(
+            vm,
+            onBack = { page = Page.REMOTE },
+            onLanguage = { page = Page.LANGUAGE },
+            onSleep = { page = Page.SLEEP },
+            onEqualizer = openEq,
+            onClock = { page = Page.CLOCK },
+        )
+        Page.LANGUAGE -> LanguageScreen(vm, onBack = { page = Page.SETTINGS })
+        Page.SLEEP -> SleepScreen(vm, onBack = { page = Page.SETTINGS })
+        Page.CLOCK -> ClockScreen(vm, onBack = { page = Page.SETTINGS })
+        Page.FAVORITES -> FavoritesScreen(vm, onBack = { page = Page.REMOTE })
+        Page.BROWSE -> BrowseScreen(vm, onBack = { page = Page.REMOTE })
+    }
+
+    if (showEq) {
+        EqualizerSheet(
+            eq = vm.eq,
+            onDismiss = { showEq = false },
+            onRetry = vm::loadEqualizer,
+            onPreset = vm::selectEqPreset,
+            onBand = vm::setEqBand,
+            onLoudness = vm::toggleLoudness,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RemoteMain(
+    vm: RadioViewModel,
+    onEqualizer: () -> Unit,
+    onSettings: () -> Unit,
+    onFavorites: () -> Unit,
+    onBrowse: () -> Unit,
+) {
+    val s = vm.ui
+    val snackbar = remember { SnackbarHostState() }
+    val notice = vm.notice
+    LaunchedEffect(notice) {
+        if (notice != null) {
+            vm.consumeNotice()
+            snackbar.showSnackbar(notice)
+        }
+    }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = {
@@ -94,11 +168,13 @@ fun RemoteScreen(vm: RadioViewModel) {
                 },
                 actions = {
                     if (s.connected && s.power) {
-                        IconButton(onClick = {
-                            showEq = true
-                            vm.loadEqualizer()
-                        }) {
+                        IconButton(onClick = onEqualizer) {
                             Icon(Icons.Filled.Equalizer, contentDescription = "Equalizer")
+                        }
+                    }
+                    if (s.connected) {
+                        IconButton(onClick = onSettings) {
+                            Icon(Icons.Filled.Settings, contentDescription = "Einstellungen")
                         }
                     }
                     IconButton(onClick = vm::togglePower) {
@@ -135,22 +211,18 @@ fun RemoteScreen(vm: RadioViewModel) {
                     NowPlayingCard(s, onPrev = vm::previous, onPlayPause = vm::playPause, onNext = vm::next)
                     VolumeRow(s, onVolume = vm::setVolume, onMute = vm::toggleMute)
                     if (s.modes.isNotEmpty()) SourcesRow(s, onSelect = vm::selectMode)
-                    PresetsSection(s, onSelect = vm::selectPreset)
+                    s.mode?.takeIf { it.browsable }?.let { mode ->
+                        FilledTonalButton(onClick = onBrowse, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(mode.listTitle)
+                        }
+                    }
+                    PresetsSection(s, onSelect = vm::selectPreset, onEdit = onFavorites)
                 }
             }
             Spacer(Modifier.height(16.dp))
         }
-    }
-
-    if (showEq) {
-        EqualizerSheet(
-            eq = vm.eq,
-            onDismiss = { showEq = false },
-            onRetry = vm::loadEqualizer,
-            onPreset = vm::selectEqPreset,
-            onBand = vm::setEqBand,
-            onLoudness = vm::toggleLoudness,
-        )
     }
 }
 
@@ -301,17 +373,27 @@ private fun SourcesRow(s: RadioUi, onSelect: (Mode) -> Unit) {
 }
 
 @Composable
-private fun PresetsSection(s: RadioUi, onSelect: (Preset) -> Unit) {
+private fun PresetsSection(s: RadioUi, onSelect: (Preset) -> Unit, onEdit: () -> Unit) {
+    val stored = s.presets.filterNot { it.empty }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Favoriten", style = MaterialTheme.typography.titleMedium)
-        if (s.presets.isEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Favoriten", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            if (s.presets.isNotEmpty()) {
+                TextButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Bearbeiten")
+                }
+            }
+        }
+        if (stored.isEmpty()) {
             Text(
                 "Für diese Quelle sind am Radio keine Favoriten gespeichert.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        s.presets.forEach { preset ->
+        stored.forEach { preset ->
             val active = preset.name.equals(s.station, ignoreCase = true)
             Surface(
                 shape = RoundedCornerShape(12.dp),
