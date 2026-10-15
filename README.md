@@ -44,3 +44,30 @@ Nicht enthalten (im Vergleich zu UNDOK): Einrichtung per WPS oder LAN-Kabel, Mul
   - `setup/` – Setup-WLAN und Ablauf der Einrichtung
   - `RadioViewModel.kt` – Zustand und Befehle
   - `ui/` – Bildschirme (`ui/EqualizerSheet.kt` – Equalizer)
+
+## Releases (APK automatisch bauen)
+
+Der Workflow `.github/workflows/release.yml` baut bei jedem Tag `v*` ein Release-APK und hängt es an ein GitHub-Release:
+
+```
+git tag v1.1
+git push origin v1.1
+```
+
+Alternativ unter **Actions › Release APK › Run workflow** einen Tag eingeben.
+
+Damit spätere Versionen sich über eine installierte App aktualisieren lassen, braucht es einen festen Signaturschlüssel. Einmalig erzeugen und als Repository-Secrets (**Settings › Secrets and variables › Actions**) hinterlegen:
+
+```
+keytool -genkeypair -v -keystore radiopult.jks -alias radiopult -keyalg RSA -keysize 2048 -validity 10000
+base64 -w0 radiopult.jks   # Ausgabe -> RADIOPULT_KEYSTORE_BASE64
+```
+
+| Secret | Inhalt |
+|---|---|
+| `RADIOPULT_KEYSTORE_BASE64` | Keystore-Datei, base64-kodiert |
+| `RADIOPULT_KEYSTORE_PASSWORD` | Keystore-Passwort |
+| `RADIOPULT_KEY_ALIAS` | Alias, z. B. `radiopult` |
+| `RADIOPULT_KEY_PASSWORD` | Schlüssel-Passwort |
+
+Ohne diese Secrets wird das APK mit einem wechselnden Debug-Schlüssel signiert: installierbar, aber Updates erfordern vorher eine Deinstallation.
