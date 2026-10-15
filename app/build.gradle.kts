@@ -13,8 +13,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // CI passes these via -PversionCode / -PversionName (see .github/workflows/release.yml)
-        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
-        versionName = (project.findProperty("versionName") as String?) ?: "1.0"
+        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 2
+        versionName = (project.findProperty("versionName") as String?) ?: "1.1.0"
     }
 
     // Release signing comes from environment variables (set by CI from repository secrets).

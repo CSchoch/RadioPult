@@ -37,6 +37,7 @@ private data class FsResponse(
     val value: String?,
     val items: List<FsItem>,
     val listEnd: Boolean,
+    val valueType: String? = null,
 )
 
 /** Knoten der HTTP-Schnittstelle, die die Frontier-Silicon-Radios anbieten. */
@@ -61,6 +62,38 @@ object Nodes {
     const val EQ_BANDS = "netRemote.sys.caps.eqBands"
     const val EQ_PRESET = "netRemote.sys.audio.eqPreset"
     const val EQ_LOUDNESS = "netRemote.sys.audio.eqLoudness"
+
+    // Favoriten bearbeiten (Schlüssel = Speicherplatz, ab 0)
+    const val ADD_PRESET = "netRemote.play.addPreset"
+    const val PRESET_DELETE = "netRemote.nav.preset.delete"
+    const val PRESET_SWAP_1 = "netRemote.nav.preset.swap.index1"
+    const val PRESET_SWAP_2 = "netRemote.nav.preset.swap.index2"
+    const val PRESET_SWAP = "netRemote.nav.preset.swap.swap"
+
+    // Senderliste / Titelliste der aktuellen Quelle
+    const val NAV_LIST = "netRemote.nav.list"
+    const val NAV_STATUS = "netRemote.nav.status"
+    const val NAV_NAVIGATE = "netRemote.nav.action.navigate"
+    const val NAV_SELECT_ITEM = "netRemote.nav.action.selectItem"
+    const val NAV_SEARCH_TERM = "netRemote.nav.searchTerm"
+    const val NAV_DAB_SCAN = "netRemote.nav.action.dabScan"
+
+    // Einstellungen
+    const val MODEL_NAME = "netRemote.sys.info.modelName"
+    const val VERSION = "netRemote.sys.info.version"
+    const val IP_ADDRESS = "netRemote.sys.net.ipConfig.address"
+    const val WLAN_ENABLED = "netRemote.sys.net.wlan.interfaceEnable"
+    const val WLAN_MAC = "netRemote.sys.net.wlan.macAddress"
+    const val WLAN_SSID = "netRemote.sys.net.wlan.connectedSSID"
+    const val WLAN_RSSI = "netRemote.sys.net.wlan.rssi"
+    const val WIRED_MAC = "netRemote.sys.net.wired.macAddress"
+    const val LANG = "netRemote.sys.lang"
+    const val VALID_LANGS = "netRemote.sys.caps.validLang"
+    const val SLEEP = "netRemote.sys.sleep"
+    const val CLOCK_MODE = "netRemote.sys.clock.mode"
+    const val CLOCK_SOURCE = "netRemote.sys.clock.source"
+    const val CLOCK_SOURCES = "netRemote.sys.caps.clockSourceList"
+    const val FACTORY_RESET = "netRemote.sys.factoryReset"
 
     /** Wert eines Bands im eigenen Equalizer („My EQ“), meist 0 = Bass, 1 = Höhen. */
     fun eqCustom(index: Int) = "netRemote.sys.audio.eqCustom.param$index"
@@ -88,9 +121,14 @@ class FsApiClient(host: String, private val pin: String) {
     private val base = "http://$host/fsapi"
     private val mutex = Mutex() // die Geräte mögen keine parallelen Anfragen
 
+    /** Byte-Arrays (z. B. der WLAN-Name) kommen hex-kodiert und werden als Text zurückgegeben. */
     suspend fun get(node: String): String? {
         val r = call("GET", node)
-        return if (r.status == "FS_OK") r.value.orEmpty() else null
+        if (r.status != "FS_OK") return null
+        val raw = r.value.orEmpty()
+        if (r.valueType != "array") return raw
+        val bytes = hexToBytes(raw.trim()) ?: return raw
+        return String(bytes, Charsets.UTF_8).trimEnd('\u0000')
     }
 
     suspend fun set(node: String, value: String): Boolean =
@@ -149,6 +187,7 @@ class FsApiClient(host: String, private val pin: String) {
         var types = mutableMapOf<String, String>()
         var fieldName: String? = null
         var inValue = false
+        var valueType: String? = null
         val path = ArrayDeque<String>()
 
         while (true) {
@@ -165,6 +204,7 @@ class FsApiClient(host: String, private val pin: String) {
                         "value" -> inValue = true
                     }
                     fieldName?.let { if (p.name != "field") types[it] = p.name }
+                    if (inValue && p.name != "value" && fieldName == null) valueType = p.name
                     path.addLast(p.name)
                 }
 
@@ -194,6 +234,6 @@ class FsApiClient(host: String, private val pin: String) {
                 XmlPullParser.END_DOCUMENT -> break
             }
         }
-        return FsResponse(status, value, items, listEnd)
+        return FsResponse(status, value, items, listEnd, valueType)
     }
 }
