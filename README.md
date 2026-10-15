@@ -9,7 +9,7 @@ Eigene Android-Fernbedienung für WLAN-Radios mit Frontier-Silicon-Modul (die Ge
 - Ein/Aus (Standby)
 - Quelle wählen (Internetradio, DAB, UKW, Bluetooth, AUX …, je nach Gerät)
 - Lautstärke und Stummschaltung
-- Play/Pause, Vor/Zurück
+- Abspielen/Stopp, Vor/Zurück
 - Anzeige von Sender, Titel/Info-Text und Senderlogo
 - Favoriten (Presets) der aktuellen Quelle anzeigen und abrufen
 - Favoriten bearbeiten: aktuellen Sender auf einem Platz speichern, löschen, Reihenfolge ändern
