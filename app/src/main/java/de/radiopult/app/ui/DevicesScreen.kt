@@ -1,6 +1,7 @@
 package de.radiopult.app.ui
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -48,11 +49,23 @@ import androidx.compose.ui.unit.dp
 import de.radiopult.app.RadioViewModel
 import de.radiopult.app.fsapi.RadioDevice
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
     var pinFor by remember { mutableStateOf<RadioDevice?>(null) }
+    var quickFor by remember { mutableStateOf<String?>(null) }
     var manualIp by rememberSaveable { mutableStateOf("") }
+
+    /** Mit gespeicherter PIN direkt verbinden; nur beim ersten Mal oder wenn es nicht klappt nach der PIN fragen. */
+    fun open(device: RadioDevice) {
+        vm.clearError()
+        if (vm.hasSavedPin(device.host)) {
+            quickFor = device.host
+            vm.connect(device, vm.savedPin(device.host)) { pinFor = device }
+        } else {
+            pinFor = device
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -98,10 +111,15 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
 
             items(vm.devices, key = { it.host }) { device ->
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        vm.clearError()
-                        pinFor = device
-                    },
+                    modifier = Modifier.fillMaxWidth().combinedClickable(
+                        enabled = !vm.connecting,
+                        onClick = { open(device) },
+                        onLongClick = {
+                            vm.clearError()
+                            pinFor = device
+                        },
+                        onLongClickLabel = "PIN ändern",
+                    ),
                 ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -111,13 +129,16 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
                             modifier = Modifier.size(32.dp),
                         )
                         Spacer(Modifier.width(16.dp))
-                        Column {
+                        Column(Modifier.weight(1f)) {
                             Text(device.name, style = MaterialTheme.typography.titleMedium)
                             Text(
                                 device.host,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
+                        if (vm.connecting && quickFor == device.host && pinFor == null) {
+                            CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
                         }
                     }
                 }
@@ -149,10 +170,9 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
                         Button(
                             onClick = {
                                 val ip = manualIp.trim()
-                                vm.clearError()
-                                pinFor = RadioDevice(ip, ip)
+                                open(RadioDevice(ip, ip))
                             },
-                            enabled = manualIp.isNotBlank(),
+                            enabled = manualIp.isNotBlank() && !vm.connecting,
                         ) { Text("Los") }
                     }
                 }
@@ -161,7 +181,8 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
             item {
                 Text(
                     "Die IP-Adresse steht am Radio meist unter Einstellungen › Netzwerk › Einstellungen anzeigen. " +
-                        "Die Standard-PIN ist bei vielen Geräten 1234.",
+                        "Die Standard-PIN ist bei vielen Geräten 1234. Die App merkt sich die PIN; " +
+                        "zum Ändern das Radio in der Liste lange gedrückt halten.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -179,7 +200,10 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
                 pinFor = null
                 vm.clearError()
             },
-            onConnect = { pin -> vm.connect(device, pin) },
+            onConnect = { pin ->
+                quickFor = null
+                vm.connect(device, pin)
+            },
         )
     }
 }

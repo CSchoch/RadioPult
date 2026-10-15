@@ -161,6 +161,9 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun savedPin(host: String): String = prefs.getString("pin_$host", "1234") ?: "1234"
 
+    /** Wurde mit diesem Radio schon einmal erfolgreich verbunden, ist seine PIN gespeichert. */
+    fun hasSavedPin(host: String): Boolean = prefs.contains("pin_$host")
+
     /** Nach der Ersteinrichtung: neues Radio vorn in die Liste. */
     fun addDevice(device: RadioDevice) {
         devices = (listOf(device) + devices).distinctBy { it.host }
@@ -185,7 +188,8 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun connect(device: RadioDevice, pin: String) {
+    /** [onFailed] läuft, wenn die Verbindung nicht klappt (z. B. gespeicherte PIN stimmt nicht mehr). */
+    fun connect(device: RadioDevice, pin: String, onFailed: () -> Unit = {}) {
         if (connecting) return
         viewModelScope.launch {
             connecting = true
@@ -213,8 +217,10 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 connectError = if (e.message == "PIN falsch") {
                     "Die PIN stimmt nicht. Du findest sie am Radio unter Netzwerk › NetRemote PIN."
                 } else e.message
+                onFailed()
             } catch (ignored: IOException) {
                 connectError = "Radio unter ${device.host} nicht erreichbar. Ist es eingeschaltet und im selben WLAN?"
+                onFailed()
             } finally {
                 connecting = false
             }
