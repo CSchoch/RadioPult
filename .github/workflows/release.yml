@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+      - "V*"
   workflow_dispatch:
     inputs:
       tag:
@@ -46,7 +47,7 @@ jobs:
           RADIOPULT_KEY_PASSWORD: ${{ secrets.RADIOPULT_KEY_PASSWORD }}
         run: |
           ./gradlew --no-daemon assembleRelease \
-            -PversionName="${TAG#v}" \
+            -PversionName="${TAG#[vV]}" \
             -PversionCode="${{ github.run_number }}"
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk "dist/RadioPult-${TAG}.apk"
