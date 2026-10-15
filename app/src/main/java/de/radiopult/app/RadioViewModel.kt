@@ -382,9 +382,21 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
 
     // Das Radio kennt kein Pause/Fortsetzen, nur Abspielen (1) und Stopp (0).
     fun playStop() {
-        val cmd = if (ui.playing) "0" else "1"
-        ui = ui.copy(playing = !ui.playing)
-        command { it.set(Nodes.PLAY_CONTROL, cmd) }
+        val stop = ui.playing
+        ui = ui.copy(playing = !stop)
+        command { c ->
+            if (!stop) {
+                if (!c.set(Nodes.PLAY_CONTROL, "1")) throw FsApiException("Das Radio hat Abspielen abgelehnt")
+                return@command
+            }
+            // Manche Radios lehnen Stopp (0) bei Internetradio ab oder ignorieren es;
+            // dort beendet Pause (2) den Stream.
+            val accepted = c.set(Nodes.PLAY_CONTROL, "0")
+            if (accepted) delay(800)
+            if (!accepted || c.get(Nodes.PLAY_STATUS)?.trim() == "2") {
+                if (!c.set(Nodes.PLAY_CONTROL, "2")) throw FsApiException("Das Radio hat Stopp abgelehnt")
+            }
+        }
     }
 
     fun next() = command { it.set(Nodes.PLAY_CONTROL, "3") }
