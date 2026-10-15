@@ -12,7 +12,7 @@ Eigene Android-Fernbedienung für WLAN-Radios mit Frontier-Silicon-Modul (die Ge
 - Play/Pause, Vor/Zurück
 - Anzeige von Sender, Titel/Info-Text und Senderlogo
 - Favoriten (Presets) der aktuellen Quelle anzeigen und abrufen
-- Favoriten bearbeiten: aktuellen Sender auf einem Platz speichern, löschen, Reihenfolge ändern
+- Favoriten bearbeiten: aktuellen Sender oder direkt einen Sender aus der Senderliste (☆) auf einem Platz speichern, löschen, Reihenfolge ändern
 - Senderliste für Internetradio und DAB (inkl. Suche und DAB-Sendersuchlauf), Titelliste für CD, Durchsuchen von USB/Musik
 - Einstellungen: Geräteinfos (Modell, Firmware, IP, MAC, WLAN und Signalstärke), Radio umbenennen, Sprache, Sleep-Timer, Datum & Uhrzeit (12/24 Stunden, Zeitquelle), Werkseinstellungen
 - Equalizer: Klang-Preset wählen (Normal, Jazz, Rock …), im eigenen Preset („My EQ“) Bass/Höhen und Loudness einstellen

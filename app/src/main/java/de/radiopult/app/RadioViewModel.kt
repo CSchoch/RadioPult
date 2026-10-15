@@ -493,7 +493,43 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun presetCommand(done: String?, block: suspend (FsApiClient) -> Boolean) {
+    /**
+     * Eintrag aus der Senderliste auf diesem Speicherplatz ablegen. Das Radio kann nur den laufenden
+     * Sender speichern, deshalb wird der Eintrag zuerst abgespielt.
+     */
+    fun storeItemAsPreset(item: NavItem, slot: Preset) {
+        ui = ui.copy(presets = ui.presets.map { if (it.key == slot.key) it.copy(name = item.name) else it })
+        presetCommand(
+            "„${item.name}“ auf Platz ${slot.key + 1} gespeichert",
+            failed = "„${item.name}“ konnte nicht gespeichert werden.",
+        ) {
+            val before = it.get(Nodes.INFO_NAME)?.trim().orEmpty()
+            it.set(Nodes.NAV_SELECT_ITEM, item.key.toString()) &&
+                awaitStation(it, item.name, before) &&
+                it.set(Nodes.ADD_PRESET, slot.key.toString())
+        }
+    }
+
+    /** Wartet, bis das Radio den gewählten Sender spielt; false, wenn es nicht umschaltet. */
+    private suspend fun awaitStation(c: FsApiClient, name: String, before: String, maxMs: Long = 10_000): Boolean {
+        val end = System.currentTimeMillis() + maxMs
+        while (System.currentTimeMillis() < end) {
+            val now = c.get(Nodes.INFO_NAME)?.trim().orEmpty()
+            // der angezeigte Name weicht manchmal leicht vom Listeneintrag ab – dann zählt der Wechsel
+            if (now.equals(name, ignoreCase = true) || (now.isNotEmpty() && now != before)) {
+                delay(500) // kurz warten, bis der Sender wirklich läuft
+                return true
+            }
+            delay(400)
+        }
+        return false
+    }
+
+    private fun presetCommand(
+        done: String?,
+        failed: String = "Das Radio hat die Änderung abgelehnt.",
+        block: suspend (FsApiClient) -> Boolean,
+    ) {
         val c = client ?: return
         viewModelScope.launch {
             try {
@@ -501,7 +537,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 delay(400) // das Radio braucht einen Moment, bis die Liste neu ist
                 presetsForMode = null
                 refresh()
-                notice = if (ok) done else "Das Radio hat die Änderung abgelehnt."
+                notice = if (ok) done else failed
             } catch (e: IOException) {
                 presetsForMode = null
                 notice = e.message ?: "Befehl fehlgeschlagen"
