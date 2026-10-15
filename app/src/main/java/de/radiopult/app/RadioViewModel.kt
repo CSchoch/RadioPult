@@ -318,7 +318,8 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 station = station,
                 text = text,
                 artist = artist,
-                playing = status == 2,
+                // 1 = Puffern, 2 = Spielt, 4 = Puffern nach Unterbrechung
+                playing = status == 1 || status == 2 || status == 4,
                 coverUrl = cover,
             )
         } catch (e: FsApiException) {
@@ -363,8 +364,9 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         command { it.set(Nodes.MUTE, if (m) "1" else "0") }
     }
 
-    fun playPause() {
-        val cmd = if (ui.playing) "2" else "1"
+    // Das Radio kennt kein Pause/Fortsetzen, nur Abspielen (1) und Stopp (0).
+    fun playStop() {
+        val cmd = if (ui.playing) "0" else "1"
         ui = ui.copy(playing = !ui.playing)
         command { it.set(Nodes.PLAY_CONTROL, cmd) }
     }
