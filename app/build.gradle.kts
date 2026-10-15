@@ -12,13 +12,29 @@ android {
         applicationId = "de.radiopult.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // CI passes these via -PversionCode / -PversionName (see .github/workflows/release.yml)
+        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "1.0"
+    }
+
+    // Release signing comes from environment variables (set by CI from repository secrets).
+    // Without them the release build falls back to the debug key so it is still installable.
+    val releaseKeystore = System.getenv("RADIOPULT_KEYSTORE_FILE")?.let { file(it) }
+    signingConfigs {
+        if (releaseKeystore != null && releaseKeystore.exists()) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("RADIOPULT_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("RADIOPULT_KEY_ALIAS")
+                keyPassword = System.getenv("RADIOPULT_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
