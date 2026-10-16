@@ -37,7 +37,8 @@ jobs:
             echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
             echo "RADIOPULT_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
           else
-            echo "::warning::RADIOPULT_KEYSTORE_BASE64 is not set - the APK is signed with a throwaway debug key, so installed copies cannot be updated in place by later releases."
+            echo "::error::RADIOPULT_KEYSTORE_BASE64 is not set. Without a fixed signing key every release gets a new key and cannot be installed over the previous one. See README, section Releases."
+            exit 1
           fi
 
       - name: Build release APK
