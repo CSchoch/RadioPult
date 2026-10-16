@@ -55,7 +55,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -475,9 +474,8 @@ private fun PresetTile(preset: Preset, active: Boolean, onClick: () -> Unit, mod
 
 @Composable
 private fun Cover(url: String?, modifier: Modifier) {
-    val bitmap by produceState<ImageBitmap?>(initialValue = null, url) {
-        value = url?.let { loadBitmap(it) }
-    }
+    var bitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(url) { bitmap = url?.let { loadBitmap(it) } }
     Box(modifier.background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
         val b = bitmap
         if (b != null) {
