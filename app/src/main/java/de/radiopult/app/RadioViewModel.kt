@@ -154,7 +154,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     private var client: FsApiClient? = null
     private var pollJob: Job? = null
     private var visible = false
-    private var presetsForMode: Int? = null
+    private val presetTracker = PresetTracker()
     private var browseJob: Job? = null
 
     init {
@@ -214,7 +214,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 val dev = device.copy(name = name)
                 devices = (listOf(dev) + devices).distinctBy { it.host }
                 client = c
-                presetsForMode = null
+                presetTracker.reset()
                 ui = RadioUi(name = name)
                 eq = EqualizerUi()
                 browse = BrowseUi()
@@ -290,16 +290,21 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         ui = ui.copy(volumeMax = (steps - 1).coerceAtLeast(1), modes = modes)
     }
 
+    /** Favoriten der Quelle [mode] laden; bis die Liste zweimal gleich ankommt, bei jeder Abfrage erneut. */
     private suspend fun loadPresets(c: FsApiClient, mode: Int): List<Preset> {
-        presetsForMode = mode
-        return try {
+        val loaded = try {
+            // nach einem Quellenwechsel hängt die Liste im Radio sonst noch an der alten Quelle
+            if (presetTracker.needsReset(mode)) c.set(Nodes.NAV_STATE, "0")
             c.set(Nodes.NAV_STATE, "1")
+            awaitNav(c, maxMs = 3000)
             // auch freie Plätze behalten – dort kann ein Sender gespeichert werden
-            c.list(Nodes.PRESETS).map { item -> Preset(item.key, item.text("name")) }
+            val list = c.list(Nodes.PRESETS, strict = true).map { item -> Preset(item.key, item.text("name")) }
+            list.takeIf { c.get(Nodes.MODE)?.trim()?.toIntOrNull() == mode } // inzwischen umgeschaltet
         } catch (ignored: IOException) {
-            presetsForMode = null // beim nächsten Durchlauf erneut versuchen
-            emptyList()
+            null // beim nächsten Durchlauf erneut versuchen
         }
+        return presetTracker.onLoaded(mode, loaded)
+            ?: if (ui.modeKey == mode) ui.presets else emptyList()
     }
 
     private suspend fun refresh() {
@@ -313,7 +318,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
             if (ui.modes.isEmpty()) loadCapabilities(c)
 
             val mode = c.get(Nodes.MODE)?.trim()?.toIntOrNull()
-            val presets = if (mode != null && mode != presetsForMode) loadPresets(c, mode) else ui.presets
+            val presets = if (mode != null && presetTracker.needsLoad(mode)) loadPresets(c, mode) else ui.presets
             val volume = c.get(Nodes.VOLUME)?.trim()?.toIntOrNull()
             val muted = c.get(Nodes.MUTE)?.trim() == "1"
             val station = c.get(Nodes.INFO_NAME)?.trim().orEmpty()
@@ -523,17 +528,53 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun presetCommand(done: String?, block: suspend (FsApiClient) -> Boolean) {
+    /**
+     * Eintrag aus der Senderliste auf diesem Speicherplatz ablegen. Das Radio kann nur den laufenden
+     * Sender speichern, deshalb wird der Eintrag zuerst abgespielt.
+     */
+    fun storeItemAsPreset(item: NavItem, slot: Preset) {
+        ui = ui.copy(presets = ui.presets.map { if (it.key == slot.key) it.copy(name = item.name) else it })
+        presetCommand(
+            "„${item.name}“ auf Platz ${slot.key + 1} gespeichert",
+            failed = "„${item.name}“ konnte nicht gespeichert werden.",
+        ) {
+            val before = it.get(Nodes.INFO_NAME)?.trim().orEmpty()
+            it.set(Nodes.NAV_SELECT_ITEM, item.key.toString()) &&
+                awaitStation(it, item.name, before) &&
+                it.set(Nodes.ADD_PRESET, slot.key.toString())
+        }
+    }
+
+    /** Wartet, bis das Radio den gewählten Sender spielt; false, wenn es nicht umschaltet. */
+    private suspend fun awaitStation(c: FsApiClient, name: String, before: String, maxMs: Long = 10_000): Boolean {
+        val end = System.currentTimeMillis() + maxMs
+        while (System.currentTimeMillis() < end) {
+            val now = c.get(Nodes.INFO_NAME)?.trim().orEmpty()
+            // der angezeigte Name weicht manchmal leicht vom Listeneintrag ab – dann zählt der Wechsel
+            if (now.equals(name, ignoreCase = true) || (now.isNotEmpty() && now != before)) {
+                delay(500) // kurz warten, bis der Sender wirklich läuft
+                return true
+            }
+            delay(400)
+        }
+        return false
+    }
+
+    private fun presetCommand(
+        done: String?,
+        failed: String = "Das Radio hat die Änderung abgelehnt.",
+        block: suspend (FsApiClient) -> Boolean,
+    ) {
         val c = client ?: return
         viewModelScope.launch {
             try {
                 val ok = block(c)
                 delay(400) // das Radio braucht einen Moment, bis die Liste neu ist
-                presetsForMode = null
+                presetTracker.invalidate()
                 refresh()
-                notice = if (ok) done else "Das Radio hat die Änderung abgelehnt."
+                notice = if (ok) done else failed
             } catch (e: IOException) {
-                presetsForMode = null
+                presetTracker.invalidate()
                 notice = e.message ?: "Befehl fehlgeschlagen"
             }
         }

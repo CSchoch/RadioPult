@@ -1,5 +1,6 @@
 package de.radiopult.app.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,12 +11,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Clear
@@ -26,6 +31,8 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SettingsInputAntenna
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,10 +54,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.radiopult.app.NavItem
+import de.radiopult.app.Preset
 import de.radiopult.app.RadioViewModel
 
 /** Sender-/Titelliste der aktuellen Quelle (Internetradio, DAB, CD, Musik …). */
@@ -63,6 +72,8 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
     var filter by rememberSaveable { mutableStateOf("") }
     var filtering by rememberSaveable { mutableStateOf(false) }
     var searchIn by remember { mutableStateOf<NavItem?>(null) }
+    var favoriteFor by remember { mutableStateOf<NavItem?>(null) }
+    var confirmOverwrite by remember { mutableStateOf<Pair<NavItem, Preset>?>(null) }
 
     // bei jedem Quellenwechsel von oben neu laden
     LaunchedEffect(s.modeKey) { vm.openBrowser() }
@@ -150,16 +161,50 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     items(shown, key = { it.key }) { item ->
+                        val playable = !item.folder && !item.search
                         NavRow(
                             item = item,
-                            playing = !item.folder && !item.search && item.name.equals(s.station, ignoreCase = true),
+                            playing = playable && item.name.equals(s.station, ignoreCase = true),
                             enabled = !b.loading,
                             onClick = { if (item.search) searchIn = item else vm.openItem(item) },
+                            // Favoriten nur, wenn das Radio für diese Quelle Speicherplätze meldet
+                            favorite = if (playable && s.presets.isNotEmpty()) {
+                                s.presets.any { it.name.equals(item.name, ignoreCase = true) }
+                            } else {
+                                null
+                            },
+                            onFavorite = { favoriteFor = item },
                         )
                     }
                 }
             }
         }
+    }
+
+    favoriteFor?.let { item ->
+        PresetPickerDialog(
+            item = item,
+            presets = s.presets,
+            onDismiss = { favoriteFor = null },
+            onPick = { slot ->
+                favoriteFor = null
+                if (slot.empty) vm.storeItemAsPreset(item, slot) else confirmOverwrite = item to slot
+            },
+        )
+    }
+    confirmOverwrite?.let { (item, slot) ->
+        AlertDialog(
+            onDismissRequest = { confirmOverwrite = null },
+            title = { Text("Platz ${slot.key + 1} überschreiben?") },
+            text = { Text("„${slot.name}“ wird durch „${item.name}“ ersetzt.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.storeItemAsPreset(item, slot)
+                    confirmOverwrite = null
+                }) { Text("Überschreiben") }
+            },
+            dismissButton = { TextButton(onClick = { confirmOverwrite = null }) { Text("Abbrechen") } },
+        )
     }
 
     searchIn?.let { item ->
@@ -175,7 +220,14 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun NavRow(item: NavItem, playing: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun NavRow(
+    item: NavItem,
+    playing: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    favorite: Boolean?,
+    onFavorite: () -> Unit,
+) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (playing) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
@@ -184,7 +236,10 @@ private fun NavRow(item: NavItem, playing: Boolean, enabled: Boolean, onClick: (
             .clip(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, onClick = onClick),
     ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = if (favorite != null) 0.dp else 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(
                 when {
                     item.folder -> Icons.Filled.Folder
@@ -207,8 +262,68 @@ private fun NavRow(item: NavItem, playing: Boolean, enabled: Boolean, onClick: (
             if (item.folder || item.search) {
                 Box { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) }
             }
+            if (favorite != null) {
+                IconButton(onClick = onFavorite, enabled = enabled, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        if (favorite) Icons.Filled.Star else Icons.Filled.StarBorder,
+                        contentDescription = "Als Favorit speichern",
+                        tint = if (favorite) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
+}
+
+/** Speicherplatz wählen, auf dem ein Eintrag der Senderliste als Favorit landet. */
+@Composable
+private fun PresetPickerDialog(item: NavItem, presets: List<Preset>, onDismiss: () -> Unit, onPick: (Preset) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Als Favorit speichern") },
+        text = {
+            Column {
+                HintText("Auf welchem Platz soll „${item.name}“ liegen? Der Sender wird dafür eingeschaltet.")
+                Spacer(Modifier.padding(4.dp))
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    presets.forEach { slot ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onPick(slot) }
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                Modifier.size(28.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    "${slot.key + 1}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                if (slot.empty) "frei" else slot.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontStyle = if (slot.empty) FontStyle.Italic else FontStyle.Normal,
+                                color = if (slot.empty) MaterialTheme.colorScheme.onSurfaceVariant
+                                else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
 }
 
 @Composable
