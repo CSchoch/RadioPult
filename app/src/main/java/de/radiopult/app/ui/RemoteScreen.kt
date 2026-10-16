@@ -28,13 +28,13 @@ import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Equalizer
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -208,7 +208,7 @@ private fun RemoteMain(
                 !s.power -> StandbyCard(onPowerOn = vm::togglePower)
 
                 else -> {
-                    NowPlayingCard(s, onPrev = vm::previous, onPlayPause = vm::playPause, onNext = vm::next)
+                    NowPlayingCard(s, onPrev = vm::previous, onPlayStop = vm::playStop, onNext = vm::next)
                     VolumeRow(s, onVolume = vm::setVolume, onMute = vm::toggleMute)
                     if (s.modes.isNotEmpty()) SourcesRow(s, onSelect = vm::selectMode)
                     s.mode?.takeIf { it.browsable }?.let { mode ->
@@ -263,7 +263,7 @@ private fun StandbyCard(onPowerOn: () -> Unit) {
 private fun NowPlayingCard(
     s: RadioUi,
     onPrev: () -> Unit,
-    onPlayPause: () -> Unit,
+    onPlayStop: () -> Unit,
     onNext: () -> Unit,
 ) {
     val modeLabel = s.modes.firstOrNull { it.key == s.modeKey }?.label.orEmpty()
@@ -310,10 +310,10 @@ private fun NowPlayingCard(
                 IconButton(onClick = onPrev) {
                     Icon(Icons.Filled.SkipPrevious, contentDescription = "Zurück", modifier = Modifier.size(32.dp))
                 }
-                FilledIconButton(onClick = onPlayPause, modifier = Modifier.size(64.dp)) {
+                FilledIconButton(onClick = onPlayStop, modifier = Modifier.size(64.dp)) {
                     Icon(
-                        if (s.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (s.playing) "Pause" else "Abspielen",
+                        if (s.playing) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                        contentDescription = if (s.playing) "Stopp" else "Abspielen",
                         modifier = Modifier.size(36.dp),
                     )
                 }

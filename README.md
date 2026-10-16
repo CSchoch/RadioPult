@@ -9,14 +9,14 @@ Eigene Android-Fernbedienung für WLAN-Radios mit Frontier-Silicon-Modul (die Ge
 - Ein/Aus (Standby)
 - Quelle wählen (Internetradio, DAB, UKW, Bluetooth, AUX …, je nach Gerät)
 - Lautstärke und Stummschaltung
-- Play/Pause, Vor/Zurück
+- Abspielen/Stopp, Vor/Zurück
 - Anzeige von Sender, Titel/Info-Text und Senderlogo
 - Favoriten (Presets) der aktuellen Quelle anzeigen und abrufen
 - Favoriten bearbeiten: aktuellen Sender oder direkt einen Sender aus der Senderliste (☆) auf einem Platz speichern, löschen, Reihenfolge ändern
 - Senderliste für Internetradio und DAB (inkl. Suche und DAB-Sendersuchlauf), Titelliste für CD, Durchsuchen von USB/Musik
 - Einstellungen: Geräteinfos (Modell, Firmware, IP, MAC, WLAN und Signalstärke), Radio umbenennen, Sprache, Sleep-Timer, Datum & Uhrzeit (12/24 Stunden, Zeitquelle), Werkseinstellungen
 - Equalizer: Klang-Preset wählen (Normal, Jazz, Rock …), im eigenen Preset („My EQ“) Bass/Höhen und Loudness einstellen
-- Merkt sich das zuletzt genutzte Radio und die PIN
+- Merkt sich das zuletzt genutzte Radio und die PIN: beim Start verbindet die App sich direkt mit dem letzten Radio, bekannte Radios verbinden per Antippen ohne PIN-Abfrage (PIN ändern: Radio lange gedrückt halten)
 
 Nicht enthalten (im Vergleich zu UNDOK): Einrichtung per WPS oder LAN-Kabel, Multiroom, Wecker, Spotify/Streamingdienste.
 
