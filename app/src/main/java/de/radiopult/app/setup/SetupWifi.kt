@@ -9,6 +9,7 @@ import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.os.PatternMatcher
 import androidx.annotation.RequiresApi
+import de.radiopult.app.R
 import de.radiopult.app.fsapi.FsApiException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -46,7 +47,7 @@ class SetupWifi(context: Context) {
             override fun onUnavailable() {
                 if (cont.isActive) {
                     cont.resumeWithException(
-                        FsApiException("Kein Setup-WLAN verbunden. Ist das Radio im Setup-Modus?"),
+                        FsApiException(R.string.error_no_setup_wifi),
                     )
                 }
             }

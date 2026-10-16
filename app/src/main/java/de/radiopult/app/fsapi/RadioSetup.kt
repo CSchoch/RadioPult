@@ -1,5 +1,6 @@
 package de.radiopult.app.fsapi
 
+import de.radiopult.app.R
 import kotlinx.coroutines.delay
 import java.io.IOException
 import java.math.BigInteger
@@ -75,7 +76,7 @@ class RadioSetup(private val client: FsApiClient) {
     }
 
     private suspend fun setOrFail(node: String, value: String) {
-        if (!client.set(node, value)) throw FsApiException("Das Radio hat die Einstellung abgelehnt ($node).")
+        if (!client.set(node, value)) throw FsApiException(R.string.error_setting_rejected_node, node)
     }
 
     companion object {
@@ -93,7 +94,7 @@ class RadioSetup(private val client: FsApiClient) {
         fun encrypt(publicKey: String, text: String): String {
             val parts = publicKey.split(':').map { it.trim() }
             if (parts.size != 2 || parts.any { p -> p.isEmpty() || p.any { Character.digit(it, 16) < 0 } }) {
-                throw FsApiException("Das Radio hat keinen gültigen Schlüssel geliefert.")
+                throw FsApiException(R.string.error_invalid_key)
             }
             val (exponent, modulus) = parts.sortedBy { it.length } // der Exponent ist der kurze Teil
             val key = KeyFactory.getInstance("RSA")

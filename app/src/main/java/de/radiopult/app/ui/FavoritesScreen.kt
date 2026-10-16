@@ -43,9 +43,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.radiopult.app.Preset
+import de.radiopult.app.R
 import de.radiopult.app.RadioViewModel
 
 /** Favoriten der aktuellen Quelle bearbeiten: aktuellen Sender speichern, löschen, Reihenfolge ändern. */
@@ -56,7 +58,7 @@ fun FavoritesScreen(vm: RadioViewModel, onBack: () -> Unit) {
     var confirmStore by remember { mutableStateOf<Preset?>(null) }
     var confirmDelete by remember { mutableStateOf<Preset?>(null) }
 
-    SubScreen(vm, if (modeLabel.isEmpty()) "Favoriten" else "Favoriten – $modeLabel", onBack) { pad ->
+    SubScreen(vm, if (modeLabel.isEmpty()) stringResource(R.string.favorites) else stringResource(R.string.favorites_for_mode, modeLabel), onBack) { pad ->
         LazyColumn(
             Modifier.fillMaxSize().padding(pad),
             contentPadding = PaddingValues(16.dp),
@@ -67,7 +69,7 @@ fun FavoritesScreen(vm: RadioViewModel, onBack: () -> Unit) {
                 Spacer(Modifier.height(16.dp))
             }
             if (s.presets.isEmpty()) {
-                item { HintText("Für diese Quelle meldet das Radio keine Speicherplätze.") }
+                item { HintText(stringResource(R.string.favorites_no_slots)) }
             }
             items(s.presets, key = { it.key }) { slot ->
                 val index = s.presets.indexOf(slot)
@@ -88,29 +90,29 @@ fun FavoritesScreen(vm: RadioViewModel, onBack: () -> Unit) {
     confirmStore?.let { slot ->
         AlertDialog(
             onDismissRequest = { confirmStore = null },
-            title = { Text("Platz ${slot.key + 1} überschreiben?") },
-            text = { Text("„${slot.name}“ wird durch „${s.station}“ ersetzt.") },
+            title = { Text(stringResource(R.string.overwrite_slot_title, slot.key + 1)) },
+            text = { Text(stringResource(R.string.overwrite_slot_text, slot.name, s.station)) },
             confirmButton = {
                 TextButton(onClick = {
                     vm.storePreset(slot)
                     confirmStore = null
-                }) { Text("Überschreiben") }
+                }) { Text(stringResource(R.string.overwrite)) }
             },
-            dismissButton = { TextButton(onClick = { confirmStore = null }) { Text("Abbrechen") } },
+            dismissButton = { TextButton(onClick = { confirmStore = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
     confirmDelete?.let { slot ->
         AlertDialog(
             onDismissRequest = { confirmDelete = null },
-            title = { Text("Favorit löschen?") },
-            text = { Text("„${slot.name}“ wird von Platz ${slot.key + 1} entfernt.") },
+            title = { Text(stringResource(R.string.delete_favorite_title)) },
+            text = { Text(stringResource(R.string.delete_favorite_text, slot.name, slot.key + 1)) },
             confirmButton = {
                 TextButton(onClick = {
                     vm.deletePreset(slot)
                     confirmDelete = null
-                }) { Text("Löschen", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Abbrechen") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }
@@ -123,12 +125,12 @@ private fun NowPlayingHint(station: String) {
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(
-                    if (station.isEmpty()) "Es läuft gerade kein Sender" else station,
+                    if (station.isEmpty()) stringResource(R.string.favorites_nothing_playing) else station,
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    if (station.isEmpty()) "Starte einen Sender, um ihn hier zu speichern."
-                    else "Läuft gerade. Tippe bei einem freien Platz auf „Speichern“, bei einem belegten auf ⋮.",
+                    if (station.isEmpty()) stringResource(R.string.favorites_start_station)
+                    else stringResource(R.string.favorites_now_playing_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
@@ -167,7 +169,7 @@ private fun PresetSlot(
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                if (slot.empty) "frei" else slot.name,
+                if (slot.empty) stringResource(R.string.slot_empty) else slot.name,
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (slot.empty) cs.onSurfaceVariant else cs.onSurface,
                 maxLines = 1,
@@ -179,23 +181,23 @@ private fun PresetSlot(
                     FilledTonalButton(onClick = onStore, modifier = Modifier.padding(end = 8.dp)) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Speichern")
+                        Text(stringResource(R.string.save))
                     }
                 }
             } else {
                 IconButton(onClick = { onMove(-1) }, enabled = canMoveUp) {
-                    Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Nach oben")
+                    Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.move_up))
                 }
                 IconButton(onClick = { onMove(1) }, enabled = canMoveDown) {
-                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Nach unten")
+                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.move_down))
                 }
                 Box {
                     IconButton(onClick = { menu = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "Mehr")
+                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more))
                     }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(
-                            text = { Text("Aktuellen Sender hier speichern") },
+                            text = { Text(stringResource(R.string.store_current_here)) },
                             leadingIcon = { Icon(Icons.Filled.Save, contentDescription = null) },
                             enabled = canStore,
                             onClick = {
@@ -204,7 +206,7 @@ private fun PresetSlot(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Löschen") },
+                            text = { Text(stringResource(R.string.delete)) },
                             leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
                             onClick = {
                                 menu = false

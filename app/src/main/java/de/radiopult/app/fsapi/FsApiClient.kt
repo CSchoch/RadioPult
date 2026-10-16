@@ -1,6 +1,9 @@
 package de.radiopult.app.fsapi
 
+import android.content.Context
 import android.util.Xml
+import androidx.annotation.StringRes
+import de.radiopult.app.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -12,8 +15,13 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-/** Fehler beim Sprechen mit dem Radio (z. B. falsche PIN). */
-class FsApiException(message: String) : IOException(message)
+/** Fehler beim Sprechen mit dem Radio (z. B. falsche PIN); [text] ist die Meldung für die Anzeige. */
+open class FsApiException(@StringRes val text: Int, private vararg val args: Any) : IOException() {
+    fun describe(context: Context): String = context.getString(text, *args)
+}
+
+/** Das Radio hat die PIN abgelehnt. */
+class WrongPinException : FsApiException(R.string.error_wrong_pin)
 
 /** Eintrag einer Liste; [types] merkt sich den Datentyp je Feld (z. B. "c8_array", "u8", "array"). */
 data class FsItem(val key: Int, val fields: Map<String, String>, val types: Map<String, String> = emptyMap()) {
@@ -145,7 +153,7 @@ class FsApiClient(host: String, private val pin: String) {
             val r = call("LIST_GET_NEXT", node, extra = "&maxItems=$pageSize", pathSuffix = "/$start")
             if (r.status == "FS_LIST_END") return all
             if (r.status != "FS_OK") {
-                if (strict) throw IOException("Liste $node nicht lesbar (${r.status})")
+                if (strict) throw IOException("List $node not readable (${r.status})")
                 return all
             }
             all += r.items
@@ -169,9 +177,9 @@ class FsApiClient(host: String, private val pin: String) {
             try {
                 when (val code = conn.responseCode) {
                     200 -> conn.inputStream.use { parse(it) }
-                    403 -> throw FsApiException("PIN falsch")
+                    403 -> throw WrongPinException()
                     404 -> FsResponse("FS_NODE_DOES_NOT_EXIST", null, emptyList(), true)
-                    else -> throw FsApiException("Radio antwortet mit HTTP $code")
+                    else -> throw FsApiException(R.string.error_http, code)
                 }
             } finally {
                 conn.disconnect()

@@ -64,11 +64,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.radiopult.app.Mode
 import de.radiopult.app.Preset
+import de.radiopult.app.R
 import de.radiopult.app.RadioUi
 import de.radiopult.app.RadioViewModel
 import java.net.HttpURLConnection
@@ -159,23 +161,23 @@ private fun RemoteMain(
                 },
                 navigationIcon = {
                     IconButton(onClick = vm::disconnect) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zur Geräteliste")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_to_devices))
                     }
                 },
                 actions = {
                     if (s.connected && s.power) {
                         IconButton(onClick = onEqualizer) {
-                            Icon(Icons.Filled.Tune, contentDescription = "Equalizer")
+                            Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.equalizer))
                         }
                     }
                     if (s.connected) {
                         IconButton(onClick = onSettings) {
-                            Icon(Icons.Outlined.Settings, contentDescription = "Einstellungen")
+                            Icon(Icons.Outlined.Settings, contentDescription = stringResource(R.string.settings))
                         }
                     }
                     if (s.connected && s.power) {
                         FilledTonalIconButton(onClick = vm::togglePower) {
-                            Icon(Icons.Filled.PowerSettingsNew, contentDescription = "Ausschalten")
+                            Icon(Icons.Filled.PowerSettingsNew, contentDescription = stringResource(R.string.power_off))
                         }
                     }
                     Spacer(Modifier.width(4.dp))
@@ -244,13 +246,13 @@ private fun StandbyPane(modifier: Modifier, error: String?, onPowerOn: () -> Uni
             modifier = Modifier.size(112.dp),
             shape = RoundedCornerShape(36.dp),
         ) {
-            Icon(Icons.Filled.PowerSettingsNew, contentDescription = "Einschalten", modifier = Modifier.size(48.dp))
+            Icon(Icons.Filled.PowerSettingsNew, contentDescription = stringResource(R.string.power_on), modifier = Modifier.size(48.dp))
         }
         Spacer(Modifier.height(24.dp))
-        Text("Standby", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.standby), style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Tippe, um das Radio einzuschalten.",
+            stringResource(R.string.standby_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -319,7 +321,7 @@ private fun PlayerCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 FilledTonalIconButton(onClick = onPrev, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Filled.SkipPrevious, contentDescription = "Zurück", modifier = Modifier.size(28.dp))
+                    Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.previous), modifier = Modifier.size(28.dp))
                 }
                 FilledIconButton(
                     onClick = onPlayStop,
@@ -328,12 +330,12 @@ private fun PlayerCard(
                 ) {
                     Icon(
                         if (s.playing) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                        contentDescription = if (s.playing) "Stopp" else "Abspielen",
+                        contentDescription = if (s.playing) stringResource(R.string.stop) else stringResource(R.string.play),
                         modifier = Modifier.size(36.dp),
                     )
                 }
                 FilledTonalIconButton(onClick = onNext, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Filled.SkipNext, contentDescription = "Weiter", modifier = Modifier.size(28.dp))
+                    Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.skip_next), modifier = Modifier.size(28.dp))
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -350,7 +352,7 @@ private fun VolumeRow(s: RadioUi, onVolume: (Int) -> Unit, onMute: () -> Unit) {
         IconButton(onClick = onMute) {
             Icon(
                 if (s.muted || s.volume == 0) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                contentDescription = if (s.muted) "Ton an" else "Stumm",
+                contentDescription = if (s.muted) stringResource(R.string.unmute) else stringResource(R.string.mute),
             )
         }
         Slider(
@@ -384,12 +386,12 @@ private fun SectionHeader(title: String, action: @Composable () -> Unit = {}) {
 @Composable
 private fun SourcesRow(s: RadioUi, onSelect: (Mode) -> Unit, onBrowse: () -> Unit) {
     Column {
-        SectionHeader("Quelle") {
+        SectionHeader(stringResource(R.string.source)) {
             s.mode?.takeIf { it.browsable }?.let { mode ->
                 TextButton(onClick = onBrowse) {
                     Icon(Icons.AutoMirrored.Filled.List, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(mode.listTitle)
+                    Text(mode.listTitle())
                 }
             }
         }
@@ -414,16 +416,16 @@ private fun SourcesRow(s: RadioUi, onSelect: (Mode) -> Unit, onBrowse: () -> Uni
 private fun PresetsGrid(s: RadioUi, onSelect: (Preset) -> Unit, onEdit: () -> Unit) {
     val stored = s.presets.filterNot { it.empty }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("Favoriten") {
+        SectionHeader(stringResource(R.string.favorites)) {
             if (s.presets.isNotEmpty()) {
                 IconButton(onClick = onEdit) {
-                    Icon(Icons.Outlined.Edit, contentDescription = "Favoriten bearbeiten")
+                    Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_favorites))
                 }
             }
         }
         if (stored.isEmpty()) {
             Text(
-                "Für diese Quelle sind am Radio keine Favoriten gespeichert.",
+                stringResource(R.string.no_favorites_stored),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -456,7 +458,7 @@ private fun PresetTile(preset: Preset, active: Boolean, onClick: () -> Unit, mod
                 contentAlignment = Alignment.Center,
             ) {
                 if (active) {
-                    Icon(Icons.Filled.GraphicEq, contentDescription = "Läuft", tint = cs.onPrimary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.GraphicEq, contentDescription = stringResource(R.string.now_playing), tint = cs.onPrimary, modifier = Modifier.size(20.dp))
                 } else {
                     Text("${preset.key + 1}", style = MaterialTheme.typography.titleSmall, color = cs.onSurfaceVariant)
                 }

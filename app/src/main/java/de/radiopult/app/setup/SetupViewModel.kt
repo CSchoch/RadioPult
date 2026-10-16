@@ -3,11 +3,13 @@ package de.radiopult.app.setup
 import android.app.Application
 import android.net.Network
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import de.radiopult.app.R
 import de.radiopult.app.fsapi.Discovery
 import de.radiopult.app.fsapi.FsApiClient
 import de.radiopult.app.fsapi.FsApiException
@@ -15,6 +17,7 @@ import de.radiopult.app.fsapi.Nodes
 import de.radiopult.app.fsapi.RadioDevice
 import de.radiopult.app.fsapi.RadioSetup
 import de.radiopult.app.fsapi.WifiNetwork
+import de.radiopult.app.fsapi.WrongPinException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -48,6 +51,8 @@ class SetupViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     val canPickWifi: Boolean get() = wifi.canRequest
+
+    private fun str(@StringRes id: Int, vararg args: Any): String = getApplication<Application>().getString(id, *args)
 
     fun start() {
         reset()
@@ -98,9 +103,7 @@ class SetupViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun joinManually() = launchStep {
-        val network = wifi.connectedWifi() ?: throw FsApiException(
-            "Das Handy ist mit keinem WLAN verbunden. Verbinde es zuerst mit dem WLAN „Setup …“ des Radios.",
-        )
+        val network = wifi.connectedWifi() ?: throw FsApiException(R.string.error_phone_no_wifi)
         connectRadio(network)
     }
 
@@ -113,22 +116,20 @@ class SetupViewModel(app: Application) : AndroidViewModel(app) {
                 client = c
                 ui = ui.copy(step = SetupStep.NAME, name = name)
                 return
-            } catch (e: FsApiException) {
-                throw if (e.message == "PIN falsch") FsApiException("Die PIN stimmt nicht. Im Setup-Modus ist sie meist 1234.") else e
+            } catch (e: WrongPinException) {
+                throw FsApiException(R.string.error_wrong_pin_setup)
             } catch (ignored: IOException) {
                 // nächste mögliche Adresse probieren
             }
         }
-        throw FsApiException(
-            "Im verbundenen WLAN antwortet kein Radio. Ist das Handy mit dem WLAN „Setup …“ des Radios verbunden?",
-        )
+        throw FsApiException(R.string.error_no_radio_on_wifi)
     }
 
     fun saveName() = launchStep {
         val c = client ?: return@launchStep
         val name = ui.name.trim()
         if (name.isNotEmpty() && !c.set(Nodes.FRIENDLY_NAME, name)) {
-            throw FsApiException("Der Name konnte nicht gespeichert werden.")
+            throw FsApiException(R.string.error_name_save)
         }
         ui = ui.copy(step = SetupStep.NETWORKS)
         scan(c)
@@ -143,7 +144,7 @@ class SetupViewModel(app: Application) : AndroidViewModel(app) {
         val networks = RadioSetup(c).scanNetworks()
         ui = ui.copy(
             networks = networks,
-            error = if (networks.isEmpty()) "Das Radio hat kein WLAN gefunden. Versuche es noch einmal." else null,
+            error = if (networks.isEmpty()) str(R.string.error_no_networks) else null,
         )
     }
 
@@ -166,7 +167,7 @@ class SetupViewModel(app: Application) : AndroidViewModel(app) {
     private fun apply(network: WifiNetwork, passphrase: String) = launchStep {
         val c = client ?: return@launchStep
         val previous = ui.step
-        ui = ui.copy(step = SetupStep.APPLYING, selected = network, status = "Zugangsdaten werden an das Radio übertragen …")
+        ui = ui.copy(step = SetupStep.APPLYING, selected = network, status = str(R.string.setup_status_sending))
         try {
             RadioSetup(c).connectTo(network, passphrase)
         } catch (e: IOException) {
@@ -176,7 +177,7 @@ class SetupViewModel(app: Application) : AndroidViewModel(app) {
         // Das Radio schließt jetzt sein Setup-WLAN; das Handy geht zurück ins Heimnetz
         wifi.release()
         client = null
-        ui = ui.copy(status = "Das Radio verbindet sich mit „${network.ssid}“ …")
+        ui = ui.copy(status = str(R.string.setup_status_connecting, network.ssid))
         ui = ui.copy(step = SetupStep.DONE, found = findRadio(ui.name.trim()))
     }
 
@@ -203,9 +204,9 @@ class SetupViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 block()
             } catch (e: FsApiException) {
-                ui = ui.copy(error = e.message)
+                ui = ui.copy(error = e.describe(getApplication()))
             } catch (ignored: IOException) {
-                ui = ui.copy(error = "Keine Verbindung zum Radio. Ist das Handy noch mit dem Setup-WLAN verbunden?")
+                ui = ui.copy(error = str(R.string.error_setup_connection))
             } finally {
                 ui = ui.copy(busy = false)
             }

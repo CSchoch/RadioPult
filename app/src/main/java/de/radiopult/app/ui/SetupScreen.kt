@@ -51,11 +51,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import de.radiopult.app.R
 import de.radiopult.app.fsapi.RadioDevice
 import de.radiopult.app.fsapi.WifiNetwork
 import de.radiopult.app.setup.SetupStep
@@ -69,10 +71,10 @@ fun SetupScreen(vm: SetupViewModel, onFinished: (RadioDevice?) -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Radio einrichten") },
+                title = { Text(stringResource(R.string.setup_title)) },
                 navigationIcon = {
                     IconButton(onClick = vm::close, enabled = s.step != SetupStep.APPLYING) {
-                        Icon(Icons.Filled.Close, contentDescription = "Abbrechen")
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cancel))
                     }
                 },
             )
@@ -121,18 +123,15 @@ private fun StepIndicator(step: SetupStep) {
 
 @Composable
 private fun IntroStep(onNext: () -> Unit) {
-    Text("Neues Radio ins WLAN bringen", style = MaterialTheme.typography.titleLarge)
+    Text(stringResource(R.string.setup_intro_title), style = MaterialTheme.typography.titleLarge)
     Paragraph(
-        "Ein neues oder auf Werkseinstellungen zurückgesetztes Radio startet im Setup-Modus und " +
-            "öffnet ein eigenes WLAN, meist „Setup <Marke> <Modell> …“.",
+        stringResource(R.string.setup_intro_1),
     )
     Paragraph(
-        "Ist das Radio schon eingerichtet, startest du den Setup-Modus am Radio unter " +
-            "Einstellungen › Netzwerk › Netzwerkassistent bzw. „Netzwerkeinstellungen löschen“ " +
-            "(je nach Gerät auch „Mit UNDOK einrichten“ / „Setup über App“).",
+        stringResource(R.string.setup_intro_2),
     )
-    Paragraph("Halte das Passwort deines WLANs bereit.")
-    Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("Weiter") }
+    Paragraph(stringResource(R.string.setup_intro_3))
+    Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.next)) }
 }
 
 @Composable
@@ -144,35 +143,35 @@ private fun JoinStep(
     onManual: () -> Unit,
 ) {
     val context = LocalContext.current
-    Text("Mit dem Radio verbinden", style = MaterialTheme.typography.titleLarge)
+    Text(stringResource(R.string.setup_join_title), style = MaterialTheme.typography.titleLarge)
     if (s.busy) {
-        Busy("Verbinde mit dem Radio …")
+        Busy(stringResource(R.string.setup_connecting))
         return
     }
     if (canPick) {
-        Paragraph("Tippe auf „Setup-WLAN suchen“ und wähle im folgenden Fenster das WLAN deines Radios.")
+        Paragraph(stringResource(R.string.setup_pick_hint))
         Button(onClick = onPick, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Filled.WifiFind, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("Setup-WLAN suchen")
+            Text(stringResource(R.string.setup_pick))
         }
-        Paragraph("Erscheint dein Radio dort nicht, verbinde dich selbst in den WLAN-Einstellungen:")
+        Paragraph(stringResource(R.string.setup_manual_fallback))
     } else {
-        Paragraph("Öffne die WLAN-Einstellungen, verbinde dich mit dem WLAN „Setup …“ des Radios und komm dann hierher zurück.")
+        Paragraph(stringResource(R.string.setup_manual_hint))
     }
     OutlinedButton(
         onClick = { context.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)) },
         modifier = Modifier.fillMaxWidth(),
-    ) { Text("WLAN-Einstellungen öffnen") }
+    ) { Text(stringResource(R.string.open_wifi_settings)) }
     OutlinedButton(onClick = onManual, modifier = Modifier.fillMaxWidth()) {
-        Text("Ich bin mit dem Setup-WLAN verbunden")
+        Text(stringResource(R.string.setup_joined))
     }
-    Paragraph("Fragt Android, ob du im WLAN ohne Internet bleiben willst, bestätige mit „Ja“.")
+    Paragraph(stringResource(R.string.setup_no_internet_hint))
     OutlinedTextField(
         value = s.pin,
         onValueChange = onPin,
-        label = { Text("PIN des Radios") },
-        supportingText = { Text("Im Setup-Modus fast immer 1234") },
+        label = { Text(stringResource(R.string.radio_pin)) },
+        supportingText = { Text(stringResource(R.string.setup_pin_hint)) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         modifier = Modifier.fillMaxWidth(),
@@ -181,18 +180,18 @@ private fun JoinStep(
 
 @Composable
 private fun NameStep(s: SetupUi, onName: (String) -> Unit, onSave: () -> Unit) {
-    Text("Name des Radios", style = MaterialTheme.typography.titleLarge)
-    Paragraph("Unter diesem Namen erscheint das Radio später in der App, z. B. „Küche“ oder „Wohnzimmer“.")
+    Text(stringResource(R.string.setup_name_title), style = MaterialTheme.typography.titleLarge)
+    Paragraph(stringResource(R.string.setup_name_hint))
     OutlinedTextField(
         value = s.name,
         onValueChange = onName,
-        label = { Text("Name") },
+        label = { Text(stringResource(R.string.name)) },
         singleLine = true,
         enabled = !s.busy,
         modifier = Modifier.fillMaxWidth(),
     )
     Button(onClick = onSave, enabled = !s.busy && s.name.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
-        Text("Weiter")
+        Text(stringResource(R.string.next))
     }
 }
 
@@ -204,16 +203,16 @@ private fun NetworksStep(
     onRescan: () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("WLAN wählen", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        Text(stringResource(R.string.choose_wifi), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
         IconButton(onClick = onRescan, enabled = !s.busy) {
-            Icon(Icons.Filled.Refresh, contentDescription = "Erneut suchen")
+            Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.search_again))
         }
     }
     if (s.busy) {
-        Busy("Das Radio sucht nach WLANs …")
+        Busy(stringResource(R.string.setup_scanning))
         return
     }
-    Paragraph("Mit welchem WLAN soll sich das Radio verbinden?")
+    Paragraph(stringResource(R.string.setup_which_wifi))
     s.networks.forEach { network ->
         Surface(
             shape = RoundedCornerShape(12.dp),
@@ -233,7 +232,7 @@ private fun NetworksStep(
                 if (network.secured) {
                     Icon(
                         Icons.Filled.Lock,
-                        contentDescription = "Passwortgeschützt",
+                        contentDescription = stringResource(R.string.password_protected),
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -250,22 +249,22 @@ private fun HiddenNetwork(onHidden: (String, Boolean) -> Unit) {
     var ssid by rememberSaveable { mutableStateOf("") }
     var secured by rememberSaveable { mutableStateOf(true) }
     if (!open) {
-        TextButton(onClick = { open = true }) { Text("Verstecktes WLAN eingeben") }
+        TextButton(onClick = { open = true }) { Text(stringResource(R.string.hidden_wifi)) }
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = ssid,
             onValueChange = { ssid = it.take(32) },
-            label = { Text("Name des WLANs (SSID)") },
+            label = { Text(stringResource(R.string.wifi_ssid)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = secured, onCheckedChange = { secured = it })
-            Text("Mit Passwort (WPA2)")
+            Text(stringResource(R.string.with_password))
         }
-        Button(onClick = { onHidden(ssid, secured) }, enabled = ssid.isNotBlank()) { Text("Weiter") }
+        Button(onClick = { onHidden(ssid, secured) }, enabled = ssid.isNotBlank()) { Text(stringResource(R.string.next)) }
     }
 }
 
@@ -273,11 +272,11 @@ private fun HiddenNetwork(onHidden: (String, Boolean) -> Unit) {
 private fun PasswordStep(s: SetupUi, onConnect: (String) -> Unit, onBack: () -> Unit) {
     var password by rememberSaveable { mutableStateOf("") }
     var visible by rememberSaveable { mutableStateOf(false) }
-    Text("Passwort für „${s.selected?.ssid.orEmpty()}“", style = MaterialTheme.typography.titleLarge)
+    Text(stringResource(R.string.password_for, s.selected?.ssid.orEmpty()), style = MaterialTheme.typography.titleLarge)
     OutlinedTextField(
         value = password,
         onValueChange = { password = it.take(64) },
-        label = { Text("WLAN-Passwort") },
+        label = { Text(stringResource(R.string.wifi_password)) },
         singleLine = true,
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -285,17 +284,17 @@ private fun PasswordStep(s: SetupUi, onConnect: (String) -> Unit, onBack: () -> 
             IconButton(onClick = { visible = !visible }) {
                 Icon(
                     if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                    contentDescription = if (visible) "Passwort verbergen" else "Passwort zeigen",
+                    contentDescription = if (visible) stringResource(R.string.hide_password) else stringResource(R.string.show_password),
                 )
             }
         },
         modifier = Modifier.fillMaxWidth(),
     )
-    Paragraph("Das Passwort wird verschlüsselt an das Radio übertragen.")
+    Paragraph(stringResource(R.string.password_encrypted))
     Button(onClick = { onConnect(password) }, enabled = password.length >= 8, modifier = Modifier.fillMaxWidth()) {
-        Text("Verbinden")
+        Text(stringResource(R.string.connect))
     }
-    TextButton(onClick = onBack) { Text("Anderes WLAN wählen") }
+    TextButton(onClick = onBack) { Text(stringResource(R.string.other_wifi)) }
 }
 
 @Composable
@@ -310,23 +309,21 @@ private fun DoneStep(s: SetupUi, onDone: () -> Unit) {
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            if (found != null) "Fertig!" else "Einstellungen übertragen",
+            if (found != null) stringResource(R.string.setup_done) else stringResource(R.string.setup_applying),
             style = MaterialTheme.typography.titleLarge,
         )
     }
     if (found != null) {
-        Paragraph("„${found.name}“ ist jetzt im WLAN „${s.selected?.ssid.orEmpty()}“ und erscheint in der Geräteliste.")
+        Paragraph(stringResource(R.string.setup_found, found.name, s.selected?.ssid.orEmpty()))
     } else {
         Paragraph(
-            "Das Radio wurde im WLAN noch nicht gefunden. Es kann eine Minute dauern, bis es verbunden ist – " +
-                "suche dann in der Geräteliste erneut.",
+            stringResource(R.string.setup_not_found),
         )
         Paragraph(
-            "Zeigt das Radio einen Fehler oder öffnet es wieder das Setup-WLAN, war das Passwort vermutlich " +
-                "falsch. Starte die Einrichtung dann noch einmal.",
+            stringResource(R.string.setup_wrong_password),
         )
     }
-    Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Zur Geräteliste") }
+    Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.go_to_devices)) }
 }
 
 @Composable
