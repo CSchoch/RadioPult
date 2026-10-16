@@ -154,7 +154,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     private var client: FsApiClient? = null
     private var pollJob: Job? = null
     private var visible = false
-    private var presetsForMode: Int? = null
+    private val presetTracker = PresetTracker()
     private var browseJob: Job? = null
 
     init {
@@ -214,7 +214,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 val dev = device.copy(name = name)
                 devices = (listOf(dev) + devices).distinctBy { it.host }
                 client = c
-                presetsForMode = null
+                presetTracker.reset()
                 ui = RadioUi(name = name)
                 eq = EqualizerUi()
                 browse = BrowseUi()
@@ -290,16 +290,21 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         ui = ui.copy(volumeMax = (steps - 1).coerceAtLeast(1), modes = modes)
     }
 
+    /** Favoriten der Quelle [mode] laden; bis die Liste zweimal gleich ankommt, bei jeder Abfrage erneut. */
     private suspend fun loadPresets(c: FsApiClient, mode: Int): List<Preset> {
-        presetsForMode = mode
-        return try {
+        val loaded = try {
+            // nach einem Quellenwechsel hängt die Liste im Radio sonst noch an der alten Quelle
+            if (presetTracker.needsReset(mode)) c.set(Nodes.NAV_STATE, "0")
             c.set(Nodes.NAV_STATE, "1")
+            awaitNav(c, maxMs = 3000)
             // auch freie Plätze behalten – dort kann ein Sender gespeichert werden
-            c.list(Nodes.PRESETS).map { item -> Preset(item.key, item.text("name")) }
+            val list = c.list(Nodes.PRESETS, strict = true).map { item -> Preset(item.key, item.text("name")) }
+            list.takeIf { c.get(Nodes.MODE)?.trim()?.toIntOrNull() == mode } // inzwischen umgeschaltet
         } catch (ignored: IOException) {
-            presetsForMode = null // beim nächsten Durchlauf erneut versuchen
-            emptyList()
+            null // beim nächsten Durchlauf erneut versuchen
         }
+        return presetTracker.onLoaded(mode, loaded)
+            ?: if (ui.modeKey == mode) ui.presets else emptyList()
     }
 
     private suspend fun refresh() {
@@ -313,7 +318,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
             if (ui.modes.isEmpty()) loadCapabilities(c)
 
             val mode = c.get(Nodes.MODE)?.trim()?.toIntOrNull()
-            val presets = if (mode != null && mode != presetsForMode) loadPresets(c, mode) else ui.presets
+            val presets = if (mode != null && presetTracker.needsLoad(mode)) loadPresets(c, mode) else ui.presets
             val volume = c.get(Nodes.VOLUME)?.trim()?.toIntOrNull()
             val muted = c.get(Nodes.MUTE)?.trim() == "1"
             val station = c.get(Nodes.INFO_NAME)?.trim().orEmpty()
@@ -553,11 +558,11 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val ok = block(c)
                 delay(400) // das Radio braucht einen Moment, bis die Liste neu ist
-                presetsForMode = null
+                presetTracker.invalidate()
                 refresh()
                 notice = if (ok) done else failed
             } catch (e: IOException) {
-                presetsForMode = null
+                presetTracker.invalidate()
                 notice = e.message ?: "Befehl fehlgeschlagen"
             }
         }

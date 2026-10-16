@@ -134,12 +134,20 @@ class FsApiClient(host: String, private val pin: String) {
     suspend fun set(node: String, value: String): Boolean =
         call("SET", node, extra = "&value=${enc(value)}").status == "FS_OK"
 
-    suspend fun list(node: String, pageSize: Int = 50): List<FsItem> {
+    /**
+     * Ganze Liste seitenweise lesen. Mit [strict] gilt eine Antwort ohne FS_OK/FS_LIST_END als Fehler
+     * (IOException) statt als Listenende – sonst ist eine halbe Liste nicht von einer vollständigen zu unterscheiden.
+     */
+    suspend fun list(node: String, pageSize: Int = 50, strict: Boolean = false): List<FsItem> {
         val all = mutableListOf<FsItem>()
         var start = -1
         repeat(20) { // Sicherheitsgrenze: höchstens 20 Seiten
             val r = call("LIST_GET_NEXT", node, extra = "&maxItems=$pageSize", pathSuffix = "/$start")
-            if (r.status != "FS_OK") return all
+            if (r.status == "FS_LIST_END") return all
+            if (r.status != "FS_OK") {
+                if (strict) throw IOException("Liste $node nicht lesbar (${r.status})")
+                return all
+            }
             all += r.items
             if (r.listEnd || r.items.isEmpty()) return all
             start = r.items.last().key
