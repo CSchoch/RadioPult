@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,18 +27,23 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Equalizer
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SettingsInputAntenna
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -54,12 +62,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import de.radiopult.app.Mode
 import de.radiopult.app.NavItem
 import de.radiopult.app.Preset
+import de.radiopult.app.R
+import de.radiopult.app.RadioUi
 import de.radiopult.app.RadioViewModel
 
 /** Sender-/Titelliste der aktuellen Quelle (Internetradio, DAB, CD, Musik …). */
@@ -69,6 +82,7 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
     val b = vm.browse
     val mode = s.mode
     val isDab = mode?.id.equals("DAB", ignoreCase = true)
+    val isStationList = isDab || mode?.id.equals("IR", ignoreCase = true)
     var filter by rememberSaveable { mutableStateOf("") }
     var filtering by rememberSaveable { mutableStateOf(false) }
     var searchIn by remember { mutableStateOf<NavItem?>(null) }
@@ -87,24 +101,25 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
 
     SubScreen(
         vm,
-        mode?.listTitle ?: "Liste",
+        mode?.listTitle() ?: stringResource(R.string.browse_list),
         onBack = goBack,
         actions = {
             if (b.items.size > 10) {
                 IconButton(onClick = {
                     filtering = !filtering
                     if (!filtering) filter = ""
-                }) { Icon(Icons.Filled.FilterList, contentDescription = "Liste filtern") }
+                }) { Icon(Icons.Filled.FilterList, contentDescription = stringResource(R.string.browse_filter)) }
             }
             if (isDab) {
                 IconButton(onClick = vm::dabScan, enabled = !b.scanning) {
-                    Icon(Icons.Filled.SettingsInputAntenna, contentDescription = "Sendersuchlauf")
+                    Icon(Icons.Filled.SettingsInputAntenna, contentDescription = stringResource(R.string.browse_scan))
                 }
             }
             IconButton(onClick = vm::openBrowser, enabled = !b.loading) {
-                Icon(Icons.Filled.Refresh, contentDescription = "Neu laden")
+                Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.reload))
             }
         },
+        bottomBar = { if (s.station.isNotEmpty()) MiniPlayer(s, onPlayStop = vm::playStop) },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             if (b.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -122,11 +137,11 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
                 OutlinedTextField(
                     value = filter,
                     onValueChange = { filter = it },
-                    placeholder = { Text("Filtern …") },
+                    placeholder = { Text(stringResource(R.string.filter_placeholder)) },
                     singleLine = true,
                     trailingIcon = {
                         if (filter.isNotEmpty()) {
-                            IconButton(onClick = { filter = "" }) { Icon(Icons.Filled.Clear, contentDescription = "Leeren") }
+                            IconButton(onClick = { filter = "" }) { Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear)) }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -139,31 +154,33 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
                 ) {
                     CircularProgressIndicator()
                     Spacer(Modifier.padding(8.dp))
-                    HintText("Sendersuchlauf läuft … das kann ein bis zwei Minuten dauern.")
+                    HintText(stringResource(R.string.browse_scanning))
                 }
 
                 b.error != null -> Column(Modifier.padding(16.dp)) {
                     HintText(b.error)
-                    TextButton(onClick = vm::openBrowser) { Text("Erneut versuchen") }
+                    TextButton(onClick = vm::openBrowser) { Text(stringResource(R.string.retry)) }
                 }
 
                 !b.loading && b.items.isEmpty() -> Column(Modifier.padding(16.dp)) {
-                    HintText("Die Liste ist leer.")
+                    HintText(stringResource(R.string.browse_empty))
                     if (isDab) {
                         Spacer(Modifier.padding(4.dp))
-                        Button(onClick = vm::dabScan) { Text("Sendersuchlauf starten") }
+                        Button(onClick = vm::dabScan) { Text(stringResource(R.string.browse_start_scan)) }
                     }
                 }
 
                 else -> LazyColumn(
                     Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    items(shown, key = { it.key }) { item ->
+                    itemsIndexed(shown, key = { _, it -> it.key }) { index, item ->
                         val playable = !item.folder && !item.search
                         NavRow(
                             item = item,
+                            shape = groupShape(index, shown.lastIndex),
+                            station = isStationList,
                             playing = playable && item.name.equals(s.station, ignoreCase = true),
                             enabled = !b.loading,
                             onClick = { if (item.search) searchIn = item else vm.openItem(item) },
@@ -195,15 +212,15 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
     confirmOverwrite?.let { (item, slot) ->
         AlertDialog(
             onDismissRequest = { confirmOverwrite = null },
-            title = { Text("Platz ${slot.key + 1} überschreiben?") },
-            text = { Text("„${slot.name}“ wird durch „${item.name}“ ersetzt.") },
+            title = { Text(stringResource(R.string.overwrite_slot_title, slot.key + 1)) },
+            text = { Text(stringResource(R.string.overwrite_slot_text, slot.name, item.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     vm.storeItemAsPreset(item, slot)
                     confirmOverwrite = null
-                }) { Text("Überschreiben") }
+                }) { Text(stringResource(R.string.overwrite)) }
             },
-            dismissButton = { TextButton(onClick = { confirmOverwrite = null }) { Text("Abbrechen") } },
+            dismissButton = { TextButton(onClick = { confirmOverwrite = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 
@@ -222,36 +239,42 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
 @Composable
 private fun NavRow(
     item: NavItem,
+    shape: Shape,
+    station: Boolean,
     playing: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
     favorite: Boolean?,
     onFavorite: () -> Unit,
 ) {
+    val cs = MaterialTheme.colorScheme
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (playing) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+        shape = shape,
+        color = if (playing) cs.primaryContainer else cs.surfaceContainer,
+        contentColor = if (playing) cs.onPrimaryContainer else cs.onSurface,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(shape)
             .clickable(enabled = enabled, onClick = onClick),
     ) {
         Row(
-            Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = if (favorite != null) 0.dp else 12.dp),
+            Modifier
+                .heightIn(min = 56.dp)
+                .padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = if (favorite != null) 4.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 when {
-                    item.folder -> Icons.Filled.Folder
+                    playing -> Icons.Filled.GraphicEq
+                    item.folder -> Icons.Outlined.Folder
                     item.search -> Icons.Filled.Search
-                    playing -> Icons.Filled.Equalizer
+                    station -> Icons.Outlined.Radio
                     else -> Icons.Filled.MusicNote
                 },
-                contentDescription = null,
-                tint = if (playing || item.folder) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
+                contentDescription = if (playing) stringResource(R.string.now_playing) else null,
+                tint = if (playing) cs.primary else cs.onSurfaceVariant,
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
             Text(
                 item.name,
                 style = MaterialTheme.typography.bodyLarge,
@@ -260,17 +283,56 @@ private fun NavRow(
                 modifier = Modifier.weight(1f),
             )
             if (item.folder || item.search) {
-                Box { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) }
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = cs.onSurfaceVariant)
             }
             if (favorite != null) {
-                IconButton(onClick = onFavorite, enabled = enabled, modifier = Modifier.size(40.dp)) {
+                IconButton(onClick = onFavorite, enabled = enabled) {
                     Icon(
                         if (favorite) Icons.Filled.Star else Icons.Filled.StarBorder,
-                        contentDescription = "Als Favorit speichern",
-                        tint = if (favorite) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        contentDescription = stringResource(R.string.save_as_favorite),
+                        tint = if (favorite) cs.primary else cs.onSurfaceVariant,
                     )
                 }
+            }
+        }
+    }
+}
+
+/** Unten immer sichtbar, was gerade läuft, mit Stopp/Abspielen – auch tief in der Senderliste. */
+@Composable
+private fun MiniPlayer(s: RadioUi, onPlayStop: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Radio, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(s.station, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (s.artist.isNotEmpty()) {
+                    Text(
+                        s.artist,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            FilledIconButton(onClick = onPlayStop) {
+                Icon(
+                    if (s.playing) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                    contentDescription = if (s.playing) stringResource(R.string.stop) else stringResource(R.string.play),
+                )
             }
         }
     }
@@ -281,10 +343,10 @@ private fun NavRow(
 private fun PresetPickerDialog(item: NavItem, presets: List<Preset>, onDismiss: () -> Unit, onPick: (Preset) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Als Favorit speichern") },
+        title = { Text(stringResource(R.string.save_as_favorite)) },
         text = {
             Column {
-                HintText("Auf welchem Platz soll „${item.name}“ liegen? Der Sender wird dafür eingeschaltet.")
+                HintText(stringResource(R.string.favorite_pick_hint, item.name))
                 Spacer(Modifier.padding(4.dp))
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     presets.forEach { slot ->
@@ -308,7 +370,7 @@ private fun PresetPickerDialog(item: NavItem, presets: List<Preset>, onDismiss: 
                             }
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                if (slot.empty) "frei" else slot.name,
+                                if (slot.empty) stringResource(R.string.slot_empty) else slot.name,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontStyle = if (slot.empty) FontStyle.Italic else FontStyle.Normal,
                                 color = if (slot.empty) MaterialTheme.colorScheme.onSurfaceVariant
@@ -322,7 +384,7 @@ private fun PresetPickerDialog(item: NavItem, presets: List<Preset>, onDismiss: 
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -336,15 +398,19 @@ private fun SearchDialog(title: String, onDismiss: () -> Unit, onSearch: (String
             OutlinedTextField(
                 value = term,
                 onValueChange = { term = it },
-                label = { Text("Suchbegriff") },
+                label = { Text(stringResource(R.string.search_term)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { if (term.isNotBlank()) onSearch(term.trim()) }),
             )
         },
         confirmButton = {
-            TextButton(onClick = { onSearch(term.trim()) }, enabled = term.isNotBlank()) { Text("Suchen") }
+            TextButton(onClick = { onSearch(term.trim()) }, enabled = term.isNotBlank()) { Text(stringResource(R.string.search)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
+
+/** Überschrift der Liste dieser Quelle. */
+@Composable
+fun Mode.listTitle(): String = listTitleRes?.let { stringResource(it) } ?: label.ifEmpty { stringResource(R.string.browse_default) }

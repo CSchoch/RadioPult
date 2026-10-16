@@ -1,5 +1,6 @@
 package de.radiopult.app.fsapi
 
+import de.radiopult.app.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -26,7 +27,8 @@ class ValuesTest {
 
     @Test
     fun namesClockSources() {
-        assertEquals("Internet", Values.clockSourceName("NETWORK"))
+        assertEquals(R.string.clock_source_internet, Values.clockSourceRes("NETWORK"))
+        assertNull(Values.clockSourceRes("DAB"))
         assertTrue(Values.clockSourceAutomatic("DAB"))
         assertFalse(Values.clockSourceAutomatic("NO_UPDATE"))
     }

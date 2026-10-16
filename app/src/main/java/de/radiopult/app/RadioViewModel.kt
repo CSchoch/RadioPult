@@ -2,6 +2,8 @@ package de.radiopult.app
 
 import android.app.Application
 import android.content.Context
+import androidx.annotation.PluralsRes
+import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -13,6 +15,7 @@ import de.radiopult.app.fsapi.FsApiException
 import de.radiopult.app.fsapi.Nodes
 import de.radiopult.app.fsapi.RadioDevice
 import de.radiopult.app.fsapi.Values
+import de.radiopult.app.fsapi.WrongPinException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -28,12 +31,13 @@ data class Mode(val key: Int, val label: String, val id: String = "") {
             return i != "FM" && NOT_BROWSABLE.none { i.contains(it) }
         }
 
-    /** Überschrift der Liste dieser Quelle. */
-    val listTitle: String
+    /** Überschrift der Liste dieser Quelle; null, wenn der Name der Quelle passt. */
+    @get:StringRes
+    val listTitleRes: Int?
         get() = when (id.uppercase()) {
-            "IR", "DAB" -> "Senderliste"
-            "CD" -> "Titelliste"
-            else -> label.ifEmpty { "Durchsuchen" }
+            "IR", "DAB" -> R.string.browse_station_list
+            "CD" -> R.string.browse_track_list
+            else -> null
         }
 }
 
@@ -157,6 +161,14 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     private val presetTracker = PresetTracker()
     private var browseJob: Job? = null
 
+    private fun str(@StringRes id: Int, vararg args: Any): String = getApplication<Application>().getString(id, *args)
+
+    private fun plural(@PluralsRes id: Int, n: Int): String = getApplication<Application>().resources.getQuantityString(id, n, n)
+
+    /** Meldung für die Anzeige: Fehler des Radios übersetzt, sonst die Systemmeldung oder [fallback]. */
+    private fun describe(e: IOException, @StringRes fallback: Int): String =
+        if (e is FsApiException) e.describe(getApplication()) else e.message ?: str(fallback)
+
     init {
         prefs.getString("last_host", null)?.let { host ->
             val last = RadioDevice(host, prefs.getString("last_name", host) ?: host)
@@ -223,12 +235,12 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 current = dev
                 startPolling()
             } catch (e: FsApiException) {
-                connectError = if (e.message == "PIN falsch") {
-                    "Die PIN stimmt nicht. Du findest sie am Radio unter Netzwerk › NetRemote PIN."
-                } else e.message
+                connectError = if (e is WrongPinException) {
+                    str(R.string.error_wrong_pin_connect)
+                } else e.describe(getApplication())
                 onFailed()
             } catch (ignored: IOException) {
-                connectError = "Radio unter ${device.host} nicht erreichbar. Ist es eingeschaltet und im selben WLAN?"
+                connectError = str(R.string.error_unreachable, device.host)
                 onFailed()
             } finally {
                 connecting = false
@@ -344,9 +356,9 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 coverUrl = cover,
             )
         } catch (e: FsApiException) {
-            ui = ui.copy(error = e.message)
+            ui = ui.copy(error = e.describe(getApplication()))
         } catch (ignored: IOException) {
-            ui = ui.copy(error = "Verbindung zum Radio unterbrochen – versuche es weiter …")
+            ui = ui.copy(error = str(R.string.error_connection_lost))
         }
     }
 
@@ -357,7 +369,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 block(c)
                 refresh()
             } catch (e: IOException) {
-                ui = ui.copy(error = e.message ?: "Befehl fehlgeschlagen")
+                ui = ui.copy(error = describe(e, R.string.error_command_failed))
             }
         }
     }
@@ -391,7 +403,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         ui = ui.copy(playing = !stop)
         command { c ->
             if (!stop) {
-                if (!c.set(Nodes.PLAY_CONTROL, "1")) throw FsApiException("Das Radio hat Abspielen abgelehnt")
+                if (!c.set(Nodes.PLAY_CONTROL, "1")) throw FsApiException(R.string.error_play_rejected)
                 return@command
             }
             // Manche Radios lehnen Stopp (0) bei Internetradio ab oder ignorieren es;
@@ -399,7 +411,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
             val accepted = c.set(Nodes.PLAY_CONTROL, "0")
             if (accepted) delay(800)
             if (!accepted || c.get(Nodes.PLAY_STATUS)?.trim() == "2") {
-                if (!c.set(Nodes.PLAY_CONTROL, "2")) throw FsApiException("Das Radio hat Stopp abgelehnt")
+                if (!c.set(Nodes.PLAY_CONTROL, "2")) throw FsApiException(R.string.error_stop_rejected)
             }
         }
     }
@@ -423,7 +435,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 val state = readEqState(c, base)
                 if (client === c) eq = state
             } catch (e: IOException) {
-                ui = ui.copy(error = e.message ?: "Equalizer konnte nicht geladen werden")
+                ui = ui.copy(error = describe(e, R.string.error_eq_load))
             } finally {
                 if (client === c) eq = eq.copy(loading = false)
             }
@@ -432,19 +444,19 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun loadEqCapabilities(c: FsApiClient): EqualizerUi {
         val presets = c.list(Nodes.EQ_PRESETS).map { item ->
-            EqPreset(item.key, item.fields["label"]?.trim().orEmpty().ifEmpty { "EQ ${item.key + 1}" })
+            EqPreset(item.key, item.fields["label"]?.trim().orEmpty().ifEmpty { str(R.string.eq_preset_default, item.key + 1) })
         }
         var bands = c.list(Nodes.EQ_BANDS).map { item ->
             EqBand(
                 index = item.key,
-                label = item.fields["label"]?.trim().orEmpty().ifEmpty { "Band ${item.key + 1}" },
+                label = item.fields["label"]?.trim().orEmpty().ifEmpty { str(R.string.eq_band_default, item.key + 1) },
                 min = item.fields["min"]?.trim()?.toIntOrNull() ?: -14,
                 max = item.fields["max"]?.trim()?.toIntOrNull() ?: 14,
             )
         }.filter { it.max > it.min }
         if (bands.isEmpty()) {
             // manche Geräte nennen ihre Bänder nicht – Bass und Höhen haben sie trotzdem
-            bands = listOf("Bass", "Höhen").mapIndexedNotNull { i, label ->
+            bands = listOf(str(R.string.eq_bass), str(R.string.eq_treble)).mapIndexedNotNull { i, label ->
                 if (c.get(Nodes.eqCustom(i)) != null) EqBand(i, label, -14, 14) else null
             }
         }
@@ -468,7 +480,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 val state = readEqState(c, eq)
                 if (client === c) eq = state.copy(loading = eq.loading)
             } catch (e: IOException) {
-                ui = ui.copy(error = e.message ?: "Befehl fehlgeschlagen")
+                ui = ui.copy(error = describe(e, R.string.error_command_failed))
             }
         }
     }
@@ -494,13 +506,13 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     // ---- Favoriten bearbeiten ----
 
     /** Aktuellen Sender auf diesem Speicherplatz ablegen. */
-    fun storePreset(slot: Preset) = presetCommand("Sender auf Platz ${slot.key + 1} gespeichert") {
+    fun storePreset(slot: Preset) = presetCommand(str(R.string.notice_station_stored, slot.key + 1)) {
         it.set(Nodes.ADD_PRESET, slot.key.toString())
     }
 
     fun deletePreset(slot: Preset) {
         ui = ui.copy(presets = ui.presets.map { if (it.key == slot.key) it.copy(name = "") else it })
-        presetCommand("Favorit ${slot.key + 1} gelöscht") {
+        presetCommand(str(R.string.notice_favorite_deleted, slot.key + 1)) {
             it.set(Nodes.NAV_STATE, "1")
             it.set(Nodes.PRESET_DELETE, slot.key.toString())
         }
@@ -535,8 +547,8 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     fun storeItemAsPreset(item: NavItem, slot: Preset) {
         ui = ui.copy(presets = ui.presets.map { if (it.key == slot.key) it.copy(name = item.name) else it })
         presetCommand(
-            "„${item.name}“ auf Platz ${slot.key + 1} gespeichert",
-            failed = "„${item.name}“ konnte nicht gespeichert werden.",
+            str(R.string.notice_item_stored, item.name, slot.key + 1),
+            failed = str(R.string.notice_item_store_failed, item.name),
         ) {
             val before = it.get(Nodes.INFO_NAME)?.trim().orEmpty()
             it.set(Nodes.NAV_SELECT_ITEM, item.key.toString()) &&
@@ -562,7 +574,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun presetCommand(
         done: String?,
-        failed: String = "Das Radio hat die Änderung abgelehnt.",
+        failed: String = str(R.string.error_change_rejected),
         block: suspend (FsApiClient) -> Boolean,
     ) {
         val c = client ?: return
@@ -575,7 +587,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 notice = if (ok) done else failed
             } catch (e: IOException) {
                 presetTracker.invalidate()
-                notice = e.message ?: "Befehl fehlgeschlagen"
+                notice = describe(e, R.string.error_command_failed)
             }
         }
     }
@@ -590,7 +602,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 block(c)
             } catch (e: IOException) {
-                if (client === c) browse = browse.copy(error = e.message ?: "Liste konnte nicht geladen werden")
+                if (client === c) browse = browse.copy(error = describe(e, R.string.error_list_load))
             } finally {
                 if (client === c) browse = browse.copy(loading = false)
             }
@@ -628,7 +640,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         when {
             item.folder -> browseTask { c ->
                 if (!c.set(Nodes.NAV_NAVIGATE, item.key.toString())) {
-                    browse = browse.copy(error = "„${item.name}“ lässt sich nicht öffnen.")
+                    browse = browse.copy(error = str(R.string.error_cannot_open, item.name))
                     return@browseTask
                 }
                 browse = browse.copy(path = browse.path + item.name, items = readNavList(c))
@@ -636,7 +648,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
 
             else -> command { c ->
                 c.set(Nodes.NAV_SELECT_ITEM, item.key.toString())
-                notice = "Spiele „${item.name}“"
+                notice = str(R.string.notice_playing, item.name)
             }
         }
     }
@@ -644,10 +656,10 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     fun search(item: NavItem, term: String) = browseTask { c ->
         c.set(Nodes.NAV_SEARCH_TERM, term)
         if (!c.set(Nodes.NAV_NAVIGATE, item.key.toString())) {
-            browse = browse.copy(error = "Die Suche wird nicht unterstützt.")
+            browse = browse.copy(error = str(R.string.error_search_unsupported))
             return@browseTask
         }
-        browse = browse.copy(path = browse.path + "„$term“", items = readNavList(c))
+        browse = browse.copy(path = browse.path + str(R.string.search_path, term), items = readNavList(c))
     }
 
     /** Eine Ebene zurück; false, wenn schon oben (dann schließt die Liste). */
@@ -663,7 +675,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     /** DAB-Sendersuchlauf starten und danach die Liste neu laden. */
     fun dabScan() = browseTask { c ->
         if (!c.set(Nodes.NAV_DAB_SCAN, "1")) {
-            browse = browse.copy(error = "Der Sendersuchlauf wird nicht unterstützt.")
+            browse = browse.copy(error = str(R.string.error_scan_unsupported))
             return@browseTask
         }
         browse = browse.copy(scanning = true, path = emptyList(), items = emptyList())
@@ -695,7 +707,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 val s = readSettings(c)
                 if (client === c) settings = s
             } catch (e: IOException) {
-                notice = e.message ?: "Einstellungen konnten nicht geladen werden"
+                notice = describe(e, R.string.error_settings_load)
             } finally {
                 if (client === c) settings = settings.copy(loading = false)
             }
@@ -731,14 +743,14 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
             version = c.get(Nodes.VERSION)?.trim()?.ifEmpty { null },
             ip = Values.ipAddress(c.get(Nodes.IP_ADDRESS)),
             mac = c.get(if (wlan) Nodes.WLAN_MAC else Nodes.WIRED_MAC)?.trim()?.ifEmpty { null },
-            network = if (wlan) c.get(Nodes.WLAN_SSID)?.trim()?.ifEmpty { null }?.let { "$it (WLAN)" } else "LAN-Kabel",
+            network = if (wlan) c.get(Nodes.WLAN_SSID)?.trim()?.ifEmpty { null }?.let { str(R.string.network_wifi, it) } else str(R.string.network_lan),
             signal = if (wlan) c.get(Nodes.WLAN_RSSI)?.trim()?.toIntOrNull()?.coerceIn(0, 100) else null,
             languages = languages,
             languageKey = c.get(Nodes.LANG)?.trim()?.toIntOrNull(),
             sleepSeconds = c.get(Nodes.SLEEP)?.trim()?.toIntOrNull(),
             clock24 = c.get(Nodes.CLOCK_MODE)?.trim()?.let { it == "1" },
             clockSources = sourceIds.filterValues { it.isNotEmpty() }
-                .map { (key, id) -> Choice(key, Values.clockSourceName(id)) },
+                .map { (key, id) -> Choice(key, Values.clockSourceRes(id)?.let { str(it) } ?: id) },
             clockSourceKey = c.get(Nodes.CLOCK_SOURCE)?.trim()?.toIntOrNull(),
             clockSourceIds = sourceIds,
         )
@@ -750,9 +762,9 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val ok = block(c)
                 if (client === c) settings = readSettings(c)
-                notice = if (ok) done else "Das Radio hat die Einstellung abgelehnt."
+                notice = if (ok) done else str(R.string.error_setting_rejected)
             } catch (e: IOException) {
-                notice = e.message ?: "Befehl fehlgeschlagen"
+                notice = describe(e, R.string.error_command_failed)
             }
         }
     }
@@ -764,7 +776,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 if (!c.set(Nodes.FRIENDLY_NAME, n)) {
-                    notice = "Das Radio hat den Namen abgelehnt."
+                    notice = str(R.string.error_name_rejected)
                     return@launch
                 }
                 val dev = current ?: return@launch
@@ -772,21 +784,21 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 ui = ui.copy(name = n)
                 current = dev.copy(name = n)
                 devices = devices.map { if (it.host == dev.host) it.copy(name = n) else it }
-                notice = "Umbenannt in „$n“"
+                notice = str(R.string.notice_renamed, n)
             } catch (e: IOException) {
-                notice = e.message ?: "Umbenennen fehlgeschlagen"
+                notice = describe(e, R.string.error_rename_failed)
             }
         }
     }
 
     fun setLanguage(choice: Choice) {
         settings = settings.copy(languageKey = choice.key)
-        settingCommand("Sprache: ${choice.label}") { it.set(Nodes.LANG, choice.key.toString()) }
+        settingCommand(str(R.string.notice_language, choice.label)) { it.set(Nodes.LANG, choice.key.toString()) }
     }
 
     fun setSleep(minutes: Int) {
         settings = settings.copy(sleepSeconds = minutes * 60)
-        settingCommand(if (minutes == 0) "Sleep-Timer aus" else "Radio schaltet in $minutes Minuten ab") {
+        settingCommand(if (minutes == 0) str(R.string.notice_sleep_off) else plural(R.plurals.notice_sleep_on, minutes)) {
             it.set(Nodes.SLEEP, (minutes * 60).toString())
         }
     }
@@ -809,7 +821,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 if (c.set(Nodes.FACTORY_RESET, "1")) {
                     disconnect()
                 } else {
-                    notice = "Das Radio lässt sich über die App nicht zurücksetzen."
+                    notice = str(R.string.error_reset_unsupported)
                 }
             } catch (e: IOException) {
                 // nach dem Zurücksetzen antwortet das Radio oft nicht mehr – das ist gewollt

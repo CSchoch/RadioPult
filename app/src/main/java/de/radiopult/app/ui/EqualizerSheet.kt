@@ -26,10 +26,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.radiopult.app.EqBand
 import de.radiopult.app.EqPreset
 import de.radiopult.app.EqualizerUi
+import de.radiopult.app.R
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -50,7 +52,7 @@ fun EqualizerSheet(
                 .padding(start = 16.dp, end = 16.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Equalizer", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.equalizer), style = MaterialTheme.typography.titleLarge)
 
             when {
                 !eq.loaded && eq.loading -> Box(
@@ -59,11 +61,11 @@ fun EqualizerSheet(
                 ) { CircularProgressIndicator() }
 
                 !eq.loaded -> Column {
-                    Hint("Der Equalizer konnte nicht geladen werden.")
-                    TextButton(onClick = onRetry) { Text("Erneut versuchen") }
+                    Hint(stringResource(R.string.eq_load_failed))
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
                 }
 
-                !eq.available -> Hint("Dieses Radio bietet keinen Equalizer an.")
+                !eq.available -> Hint(stringResource(R.string.eq_unavailable))
 
                 else -> {
                     if (eq.presets.isNotEmpty()) {
@@ -81,13 +83,13 @@ fun EqualizerSheet(
                         eq.bands.forEach { band -> BandSlider(band, onBand) }
                         eq.loudness?.let { on ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Loudness", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                                Text(stringResource(R.string.loudness), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                                 Switch(checked = on, onCheckedChange = { onLoudness() })
                             }
                         }
                     } else if (eq.bands.isNotEmpty() || eq.loudness != null) {
                         val custom = eq.presets.firstOrNull { it.key == eq.customKey }?.label.orEmpty()
-                        Hint("Eigene Klangregler gibt es im Preset „$custom“.")
+                        Hint(stringResource(R.string.eq_custom_hint, custom))
                     }
                 }
             }
