@@ -52,10 +52,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import de.radiopult.app.R
 import de.radiopult.app.RadioViewModel
 import de.radiopult.app.fsapi.RadioDevice
 
@@ -81,7 +83,7 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
                 title = { Text("RadioPult") },
                 actions = {
                     IconButton(onClick = vm::scan, enabled = !vm.scanning) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Erneut suchen")
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.search_again))
                     }
                 },
             )
@@ -90,7 +92,7 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
             ExtendedFloatingActionButton(
                 onClick = onSetup,
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Neues Radio") },
+                text = { Text(stringResource(R.string.new_radio)) },
             )
         },
     ) { pad ->
@@ -108,7 +110,7 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            "Radios im WLAN",
+                            stringResource(R.string.radios_on_wifi),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1f),
@@ -128,7 +130,7 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
                                 vm.clearError()
                                 pinFor = device
                             },
-                            onLongClickLabel = "PIN ändern",
+                            onLongClickLabel = stringResource(R.string.change_pin),
                         ),
                     ) {
                         ListItem(
@@ -158,7 +160,7 @@ fun DevicesScreen(vm: RadioViewModel, onSetup: () -> Unit) {
                     TextButton(onClick = { manual = true }, modifier = Modifier.padding(top = 8.dp)) {
                         Icon(Icons.Filled.Lan, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Per IP-Adresse verbinden")
+                        Text(stringResource(R.string.connect_by_ip))
                     }
                 }
             }
@@ -205,10 +207,10 @@ private fun EmptyDevices(modifier: Modifier, onScan: () -> Unit, onManual: () ->
             Icon(Icons.Filled.Radio, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
         }
         Spacer(Modifier.height(24.dp))
-        Text("Kein Radio gefunden", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.no_radio_found), style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Handy und Radio müssen im selben WLAN sein.",
+            stringResource(R.string.same_wifi_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -217,9 +219,9 @@ private fun EmptyDevices(modifier: Modifier, onScan: () -> Unit, onManual: () ->
         FilledTonalButton(onClick = onScan) {
             Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Erneut suchen")
+            Text(stringResource(R.string.search_again))
         }
-        TextButton(onClick = onManual) { Text("Per IP-Adresse verbinden") }
+        TextButton(onClick = onManual) { Text(stringResource(R.string.connect_by_ip)) }
     }
 }
 
@@ -229,29 +231,28 @@ private fun ManualDialog(connecting: Boolean, onDismiss: () -> Unit, onConnect: 
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Filled.Lan, contentDescription = null) },
-        title = { Text("Per IP-Adresse verbinden") },
+        title = { Text(stringResource(R.string.connect_by_ip)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = ip,
                     onValueChange = { ip = it },
-                    label = { Text("IP-Adresse") },
+                    label = { Text(stringResource(R.string.ip_address)) },
                     placeholder = { Text("192.168.178.40") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 )
                 Text(
-                    "Steht am Radio meist unter Einstellungen › Netzwerk › Einstellungen anzeigen. " +
-                        "Die Standard-PIN ist oft 1234; zum Ändern ein Radio in der Liste lange drücken.",
+                    stringResource(R.string.manual_connect_help),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConnect(ip.trim()) }, enabled = ip.isNotBlank() && !connecting) { Text("Verbinden") }
+            TextButton(onClick = { onConnect(ip.trim()) }, enabled = ip.isNotBlank() && !connecting) { Text(stringResource(R.string.connect)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -273,7 +274,7 @@ private fun PinDialog(
                 OutlinedTextField(
                     value = pin,
                     onValueChange = { pin = it.filter(Char::isDigit).take(8) },
-                    label = { Text("PIN des Radios") },
+                    label = { Text(stringResource(R.string.radio_pin)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -289,12 +290,12 @@ private fun PinDialog(
                 if (connecting) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("Verbinden")
+                    Text(stringResource(R.string.connect))
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !connecting) { Text("Abbrechen") }
+            TextButton(onClick = onDismiss, enabled = !connecting) { Text(stringResource(R.string.cancel)) }
         },
     )
 }

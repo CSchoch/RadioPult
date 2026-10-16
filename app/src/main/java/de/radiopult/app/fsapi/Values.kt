@@ -1,5 +1,8 @@
 package de.radiopult.app.fsapi
 
+import androidx.annotation.StringRes
+import de.radiopult.app.R
+
 /** Umrechnung der Rohwerte, die das Radio liefert, in lesbaren Text. */
 object Values {
 
@@ -33,12 +36,13 @@ object Values {
     /** Manche Radios nennen die Sprachen englisch („German“) – angezeigt wird der eigene Name („Deutsch“). */
     fun languageName(label: String): String = languageNames[label.trim().lowercase()] ?: label.trim()
 
-    fun clockSourceName(label: String): String = when (label.trim().uppercase()) {
-        "DAB" -> "DAB"
-        "FM" -> "UKW (RDS)"
-        "NETWORK", "INTERNET", "NET" -> "Internet"
-        "NO_UPDATE", "NONE", "MANUAL" -> "Keine (manuell)"
-        else -> label.trim()
+    /** Anzeigename der Zeitquelle; null, wenn der Rohwert selbst angezeigt wird (z. B. „DAB“). */
+    @StringRes
+    fun clockSourceRes(label: String): Int? = when (label.trim().uppercase()) {
+        "FM" -> R.string.clock_source_fm
+        "NETWORK", "INTERNET", "NET" -> R.string.clock_source_internet
+        "NO_UPDATE", "NONE", "MANUAL" -> R.string.clock_source_manual
+        else -> null
     }
 
     /** Ob die Uhrzeit bei dieser Zeitquelle automatisch gestellt wird. */
