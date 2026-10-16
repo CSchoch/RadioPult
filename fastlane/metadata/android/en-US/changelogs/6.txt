@@ -1,0 +1,4 @@
+- New design based on Material 3
+- The app is now available in English and German and follows the phone language
+- App icon, screenshots and store descriptions for F-Droid and IzzyOnDroid
+- RadioPult is now free software under the GPL-3.0

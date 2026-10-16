@@ -12,9 +12,10 @@ android {
         applicationId = "de.radiopult.app"
         minSdk = 26
         targetSdk = 35
-        // CI passes these via -PversionCode / -PversionName (see .github/workflows/release.yml)
-        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 2
-        versionName = (project.findProperty("versionName") as String?) ?: "1.1.0"
+        // Raise both before tagging a release (tag V<versionName>, see README › Releases).
+        // F-Droid builds from the tagged source and reads the version from here.
+        versionCode = 6
+        versionName = "1.5.0"
     }
 
     // Release signing comes from environment variables (set by CI from repository secrets).
