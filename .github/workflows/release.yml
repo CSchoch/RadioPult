@@ -41,15 +41,21 @@ jobs:
             exit 1
           fi
 
+      - name: Check that the tag matches versionName
+        run: |
+          VERSION=$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' app/build.gradle.kts)
+          if [ "${TAG#[vV]}" != "$VERSION" ]; then
+            echo "::error::Tag $TAG does not match versionName \"$VERSION\" in app/build.gradle.kts. Raise versionCode and versionName there first (see README, section Releases)."
+            exit 1
+          fi
+
       - name: Build release APK
         env:
           RADIOPULT_KEYSTORE_PASSWORD: ${{ secrets.RADIOPULT_KEYSTORE_PASSWORD }}
           RADIOPULT_KEY_ALIAS: ${{ secrets.RADIOPULT_KEY_ALIAS }}
           RADIOPULT_KEY_PASSWORD: ${{ secrets.RADIOPULT_KEY_PASSWORD }}
         run: |
-          ./gradlew --no-daemon assembleRelease \
-            -PversionName="${TAG#[vV]}" \
-            -PversionCode="${{ github.run_number }}"
+          ./gradlew --no-daemon assembleRelease
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk "dist/RadioPult-${TAG}.apk"
 

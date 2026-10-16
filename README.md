@@ -112,14 +112,18 @@ Nicht enthalten (im Vergleich zu UNDOK): Einrichtung per WPS oder LAN-Kabel, Mul
 
 ### Releases (APK automatisch bauen)
 
-Der Workflow `.github/workflows/release.yml` baut bei jedem Tag `v*` ein Release-APK und hängt es an ein GitHub-Release:
+Der Workflow `.github/workflows/release.yml` baut bei jedem Tag `v*`/`V*` ein Release-APK und hängt es an ein GitHub-Release.
+
+1. In `app/build.gradle.kts` `versionCode` um 1 erhöhen und `versionName` auf die neue Version setzen (z. B. `1.6.0`). F-Droid baut die App aus dem Quellcode des Tags und liest die Version von dort.
+2. Optional: Änderungen für die Store-Seiten in `fastlane/metadata/android/de-DE/changelogs/<versionCode>.txt` und `en-US/changelogs/<versionCode>.txt` eintragen.
+3. Committen, dann taggen:
 
 ```
-git tag v1.1
-git push origin v1.1
+git tag V1.6.0
+git push origin V1.6.0
 ```
 
-Alternativ unter **Actions › Release APK › Run workflow** einen Tag eingeben.
+Alternativ unter **Actions › Release APK › Run workflow** einen Tag eingeben. Passt der Tag nicht zu `versionName`, bricht der Workflow ab.
 
 Damit spätere Versionen sich über eine installierte App aktualisieren lassen, braucht es einen festen Signaturschlüssel. Einmalig erzeugen und als Repository-Secrets (**Settings › Secrets and variables › Actions**) hinterlegen:
 
