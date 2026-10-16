@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Startfenster im dunklen Design dunkel, damit beim Öffnen nichts hell aufblitzt -->
+    <style name="Theme.RadioPult" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+</resources>

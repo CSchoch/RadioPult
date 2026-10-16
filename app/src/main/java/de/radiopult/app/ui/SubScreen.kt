@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +38,7 @@ fun SubScreen(
     title: String,
     onBack: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
     BackHandler(onBack = onBack)
@@ -61,6 +63,7 @@ fun SubScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
+        bottomBar = bottomBar,
         content = content,
     )
 }
@@ -104,5 +107,17 @@ fun HintText(text: String, modifier: Modifier = Modifier) {
         modifier = modifier,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/** Erste Zeile oben rund, letzte unten rund, dazwischen kleine Radien: wirkt wie eine zusammenhängende Gruppe. */
+fun groupShape(index: Int, last: Int): RoundedCornerShape {
+    val big = 20.dp
+    val small = 4.dp
+    return RoundedCornerShape(
+        topStart = if (index == 0) big else small,
+        topEnd = if (index == 0) big else small,
+        bottomStart = if (index == last) big else small,
+        bottomEnd = if (index == last) big else small,
     )
 }

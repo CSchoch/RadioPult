@@ -3,7 +3,6 @@ package de.radiopult.app.ui
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,21 +24,21 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Radio
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,7 +65,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,11 +72,11 @@ import de.radiopult.app.Mode
 import de.radiopult.app.Preset
 import de.radiopult.app.RadioUi
 import de.radiopult.app.RadioViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Unterseiten der Fernbedienung. */
 private enum class Page { REMOTE, SETTINGS, LANGUAGE, SLEEP, CLOCK, FAVORITES, BROWSE }
@@ -169,59 +166,55 @@ private fun RemoteMain(
                 actions = {
                     if (s.connected && s.power) {
                         IconButton(onClick = onEqualizer) {
-                            Icon(Icons.Filled.Equalizer, contentDescription = "Equalizer")
+                            Icon(Icons.Filled.Tune, contentDescription = "Equalizer")
                         }
                     }
                     if (s.connected) {
                         IconButton(onClick = onSettings) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Einstellungen")
+                            Icon(Icons.Outlined.Settings, contentDescription = "Einstellungen")
                         }
                     }
-                    IconButton(onClick = vm::togglePower) {
-                        Icon(
-                            Icons.Filled.PowerSettingsNew,
-                            contentDescription = if (s.power) "Ausschalten" else "Einschalten",
-                            tint = if (s.power) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    if (s.connected && s.power) {
+                        FilledTonalIconButton(onClick = vm::togglePower) {
+                            Icon(Icons.Filled.PowerSettingsNew, contentDescription = "Ausschalten")
+                        }
                     }
+                    Spacer(Modifier.width(4.dp))
                 },
             )
         },
     ) { pad ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(pad)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            s.error?.let { ErrorBanner(it) }
+        when {
+            !s.connected && s.error == null -> Box(
+                Modifier.fillMaxSize().padding(pad),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator() }
 
-            when {
-                !s.connected && s.error == null -> Box(
-                    Modifier.fillMaxWidth().padding(48.dp),
-                    contentAlignment = Alignment.Center,
-                ) { CircularProgressIndicator() }
+            !s.power -> StandbyPane(Modifier.padding(pad), s.error, onPowerOn = vm::togglePower)
 
-                !s.power -> StandbyCard(onPowerOn = vm::togglePower)
-
-                else -> {
-                    NowPlayingCard(s, onPrev = vm::previous, onPlayStop = vm::playStop, onNext = vm::next)
-                    VolumeRow(s, onVolume = vm::setVolume, onMute = vm::toggleMute)
-                    if (s.modes.isNotEmpty()) SourcesRow(s, onSelect = vm::selectMode)
-                    s.mode?.takeIf { it.browsable }?.let { mode ->
-                        FilledTonalButton(onClick = onBrowse, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(mode.listTitle)
-                        }
-                    }
-                    PresetsSection(s, onSelect = vm::selectPreset, onEdit = onFavorites)
+            else -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(pad)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                s.error?.let { ErrorBanner(it) }
+                PlayerCard(
+                    s,
+                    onPrev = vm::previous,
+                    onPlayStop = vm::playStop,
+                    onNext = vm::next,
+                    onVolume = vm::setVolume,
+                    onMute = vm::toggleMute,
+                )
+                if (s.modes.isNotEmpty()) {
+                    SourcesRow(s, onSelect = vm::selectMode, onBrowse = onBrowse)
                 }
+                PresetsGrid(s, onSelect = vm::selectPreset, onEdit = onFavorites)
+                Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -231,96 +224,121 @@ private fun ErrorBanner(text: String) {
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(text, Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+        Text(text, Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
+/** Standby füllt die Seite: ein großer Einschaltknopf in der Mitte statt einer kleinen Karte oben. */
 @Composable
-private fun StandbyCard(onPowerOn: () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(
-            Modifier.fillMaxWidth().padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+private fun StandbyPane(modifier: Modifier, error: String?, onPowerOn: () -> Unit) {
+    Column(
+        modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        error?.let { ErrorBanner(it); Spacer(Modifier.height(24.dp)) }
+        FilledIconButton(
+            onClick = onPowerOn,
+            modifier = Modifier.size(112.dp),
+            shape = RoundedCornerShape(36.dp),
         ) {
-            Icon(
-                Icons.Filled.PowerSettingsNew,
-                contentDescription = null,
-                modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(12.dp))
-            Text("Das Radio ist im Standby", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(16.dp))
-            Button(onClick = onPowerOn) { Text("Einschalten") }
+            Icon(Icons.Filled.PowerSettingsNew, contentDescription = "Einschalten", modifier = Modifier.size(48.dp))
         }
+        Spacer(Modifier.height(24.dp))
+        Text("Standby", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Tippe, um das Radio einzuschalten.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
+/** Alles, was zum laufenden Sender gehört, in einer Fläche: Anzeige, Transport und Lautstärke. */
 @Composable
-private fun NowPlayingCard(
+private fun PlayerCard(
     s: RadioUi,
     onPrev: () -> Unit,
     onPlayStop: () -> Unit,
     onNext: () -> Unit,
+    onVolume: (Int) -> Unit,
+    onMute: () -> Unit,
 ) {
     val modeLabel = s.modes.firstOrNull { it.key == s.modeKey }?.label.orEmpty()
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Cover(s.coverUrl, Modifier.size(96.dp).clip(RoundedCornerShape(14.dp)))
+                Cover(s.coverUrl, Modifier.size(112.dp).clip(RoundedCornerShape(20.dp)))
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     if (modeLabel.isNotEmpty()) {
                         Text(
-                            modeLabel.uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
+                            modeLabel,
+                            style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
                         )
+                        Spacer(Modifier.height(2.dp))
                     }
                     Text(
                         s.station.ifEmpty { "—" },
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.headlineSmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     if (s.artist.isNotEmpty()) {
-                        Text(s.artist, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    if (s.text.isNotEmpty()) {
                         Text(
-                            s.text,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 3,
+                            s.artist,
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            if (s.text.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    s.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.height(20.dp))
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onPrev) {
-                    Icon(Icons.Filled.SkipPrevious, contentDescription = "Zurück", modifier = Modifier.size(32.dp))
+                FilledTonalIconButton(onClick = onPrev, modifier = Modifier.size(56.dp)) {
+                    Icon(Icons.Filled.SkipPrevious, contentDescription = "Zurück", modifier = Modifier.size(28.dp))
                 }
-                FilledIconButton(onClick = onPlayStop, modifier = Modifier.size(64.dp)) {
+                FilledIconButton(
+                    onClick = onPlayStop,
+                    modifier = Modifier.width(112.dp).height(72.dp),
+                    shape = RoundedCornerShape(24.dp),
+                ) {
                     Icon(
                         if (s.playing) Icons.Filled.Stop else Icons.Filled.PlayArrow,
                         contentDescription = if (s.playing) "Stopp" else "Abspielen",
                         modifier = Modifier.size(36.dp),
                     )
                 }
-                IconButton(onClick = onNext) {
-                    Icon(Icons.Filled.SkipNext, contentDescription = "Weiter", modifier = Modifier.size(32.dp))
+                FilledTonalIconButton(onClick = onNext, modifier = Modifier.size(56.dp)) {
+                    Icon(Icons.Filled.SkipNext, contentDescription = "Weiter", modifier = Modifier.size(28.dp))
                 }
             }
+            Spacer(Modifier.height(12.dp))
+            VolumeRow(s, onVolume, onMute)
         }
     }
 }
@@ -350,72 +368,107 @@ private fun VolumeRow(s: RadioUi, onVolume: (Int) -> Unit, onMute: () -> Unit) {
             shown.roundToInt().toString(),
             modifier = Modifier.width(36.dp),
             textAlign = TextAlign.End,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.labelLarge,
         )
     }
 }
 
 @Composable
-private fun SourcesRow(s: RadioUi, onSelect: (Mode) -> Unit) {
+private fun SectionHeader(title: String, action: @Composable () -> Unit = {}) {
+    Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        action()
+    }
+}
+
+/** Quelle und ihre Liste gehören zusammen: der Listen-Knopf sitzt an der Überschrift statt als breiter Balken. */
+@Composable
+private fun SourcesRow(s: RadioUi, onSelect: (Mode) -> Unit, onBrowse: () -> Unit) {
     Column {
-        Text("Quelle", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(4.dp))
+        SectionHeader("Quelle") {
+            s.mode?.takeIf { it.browsable }?.let { mode ->
+                TextButton(onClick = onBrowse) {
+                    Icon(Icons.AutoMirrored.Filled.List, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(mode.listTitle)
+                }
+            }
+        }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(s.modes, key = { it.key }) { mode ->
+                val selected = mode.key == s.modeKey
                 FilterChip(
-                    selected = mode.key == s.modeKey,
+                    selected = selected,
                     onClick = { onSelect(mode) },
                     label = { Text(mode.label) },
+                    leadingIcon = if (selected) {
+                        { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                    } else null,
                 )
             }
         }
     }
 }
 
+/** Favoriten als Tastenfeld wie am Radio: zwei Spalten, mehr Sender ohne Scrollen sichtbar. */
 @Composable
-private fun PresetsSection(s: RadioUi, onSelect: (Preset) -> Unit, onEdit: () -> Unit) {
+private fun PresetsGrid(s: RadioUi, onSelect: (Preset) -> Unit, onEdit: () -> Unit) {
     val stored = s.presets.filterNot { it.empty }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Favoriten", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        SectionHeader("Favoriten") {
             if (s.presets.isNotEmpty()) {
-                TextButton(onClick = onEdit) {
-                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Bearbeiten")
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Outlined.Edit, contentDescription = "Favoriten bearbeiten")
                 }
             }
         }
         if (stored.isEmpty()) {
             Text(
                 "Für diese Quelle sind am Radio keine Favoriten gespeichert.",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        stored.forEach { preset ->
-            val active = preset.name.equals(s.station, ignoreCase = true)
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (active) MaterialTheme.colorScheme.secondaryContainer
-                else MaterialTheme.colorScheme.surfaceContainer,
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onSelect(preset) },
+        stored.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pair.forEach { preset ->
+                    PresetTile(preset, active = preset.name.equals(s.station, ignoreCase = true), onClick = { onSelect(preset) }, Modifier.weight(1f))
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PresetTile(preset: Preset, active: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val cs = MaterialTheme.colorScheme
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = if (active) cs.primaryContainer else cs.surfaceContainer,
+        contentColor = if (active) cs.onPrimaryContainer else cs.onSurface,
+        modifier = modifier.height(72.dp),
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(12.dp))
+                    .background(if (active) cs.primary else cs.surfaceContainerHighest),
+                contentAlignment = Alignment.Center,
             ) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "${preset.key + 1}",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Text(preset.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (active) {
+                    Icon(Icons.Filled.GraphicEq, contentDescription = "Läuft", tint = cs.onPrimary, modifier = Modifier.size(20.dp))
+                } else {
+                    Text("${preset.key + 1}", style = MaterialTheme.typography.titleSmall, color = cs.onSurfaceVariant)
                 }
             }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                preset.name,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
