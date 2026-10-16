@@ -1,0 +1,20 @@
+<p>RadioPult ist eine Fernbedienung für WLAN- und Internetradios mit Frontier-Silicon-Modul, also für die Geräte, die sonst mit der App <b>UNDOK</b> gesteuert werden. Wenn UNDOK nicht mehr funktioniert, steuert RadioPult dieselben Radios über das Heim-WLAN.</p>
+
+<p>Frontier-Silicon-Radios gibt es von vielen Marken, z. B. Hama, Medion, Roberts, Technisat, Sangean, Silvercrest, Blaupunkt und Auna. Jedes Radio, das mit UNDOK funktioniert, sollte auch mit RadioPult funktionieren.</p>
+
+<p><b>Funktionen</b></p>
+<ul>
+<li>Ersteinrichtung: neues Radio über sein Setup-WLAN ins Heim-WLAN bringen und benennen</li>
+<li>Radios im WLAN automatisch finden oder IP-Adresse eingeben</li>
+<li>Ein/Aus, Quelle (Internetradio, DAB, UKW, Bluetooth, AUX …), Lautstärke und Stummschaltung</li>
+<li>Abspielen/Stopp, Vor/Zurück, Sender, Titel-Info und Senderlogo</li>
+<li>Favoriten: abrufen, aktuellen Sender oder einen Sender aus der Liste speichern, löschen, sortieren</li>
+<li>Senderliste für Internetradio und DAB mit Suche und DAB-Suchlauf, CD-Titelliste, USB durchsuchen</li>
+<li>Equalizer-Presets, eigener Bass/Höhen und Loudness</li>
+<li>Einstellungen: Geräteinfos, umbenennen, Sprache, Sleep-Timer, Datum und Uhrzeit, Werkseinstellungen</li>
+<li>Merkt sich das letzte Radio und die PIN und verbindet sich beim Start direkt</li>
+</ul>
+
+<p>Kein Konto, keine Werbung, kein Tracking. Die App spricht direkt im Heimnetz mit dem Radio.</p>
+
+<p>Nicht enthalten: Einrichtung per WPS oder LAN-Kabel, Multiroom, Wecker, Spotify und andere Streamingdienste.</p>

@@ -1,0 +1,1 @@
+Remote for Frontier Silicon Wi-Fi radios that are controlled with UNDOK
