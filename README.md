@@ -8,6 +8,13 @@
 
 **Download:** the latest APK is on the [Releases page](https://github.com/CSchoch/RadioPult/releases/latest). Download `RadioPult-….apk` on your phone, open it and allow installing from this source. New versions install as updates over the old one.
 
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="200" alt="Remote with now playing, sources and presets">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="200" alt="Station list">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="200" alt="Editing presets">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="200" alt="Equalizer">
+</p>
+
 ## Which radios work?
 
 Any radio that works with **UNDOK** should work with RadioPult. These radios use a Frontier Silicon module (for example Venice 6.5 / Venice X) and its network remote interface (FSAPI / "NetRemote"). They are sold by many brands, for example **Hama, Medion, Roberts, Technisat, Sangean, Silvercrest, Blaupunkt, Auna** and others. If your radio has a menu item like *Network › NetRemote PIN Setup*, it is very likely supported.
@@ -48,6 +55,13 @@ RadioPult is free software under the [GNU General Public License v3.0](LICENSE).
 Eigene Android-Fernbedienung für WLAN-Radios mit Frontier-Silicon-Modul (die Geräte, die sonst mit UNDOK gesteuert werden, z. B. viele Modelle von Hama, Medion, Roberts, Technisat, Sangean, Silvercrest u. a.). Kostenlose UNDOK-Alternative, wenn die UNDOK-App nicht mehr funktioniert oder nicht mehr verfügbar ist.
 
 **Download:** Das aktuelle APK gibt es auf der [Releases-Seite](https://github.com/CSchoch/RadioPult/releases/latest). Am Handy `RadioPult-….apk` herunterladen, öffnen und die Installation aus dieser Quelle erlauben.
+
+<p>
+  <img src="fastlane/metadata/android/de-DE/images/phoneScreenshots/1.png" width="200" alt="Fernbedienung mit aktuellem Sender, Quellen und Favoriten">
+  <img src="fastlane/metadata/android/de-DE/images/phoneScreenshots/2.png" width="200" alt="Senderliste">
+  <img src="fastlane/metadata/android/de-DE/images/phoneScreenshots/3.png" width="200" alt="Favoriten bearbeiten">
+  <img src="fastlane/metadata/android/de-DE/images/phoneScreenshots/4.png" width="200" alt="Equalizer">
+</p>
 
 ### Was die App kann
 
