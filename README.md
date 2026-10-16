@@ -35,6 +35,10 @@ Not included (compared to UNDOK): setup via WPS or LAN cable, multiroom, alarms,
 - The **PIN** is `1234` on most radios. You can find it on the radio under *Settings › Network › NetRemote PIN Setup*.
 - If the radio is not found automatically, look up its IP address on the radio (*Network › View settings*) or in your router and enter it manually.
 
+## License
+
+RadioPult is free software under the [GNU General Public License v3.0](LICENSE).
+
 ---
 
 <a id="deutsch"></a>
@@ -120,3 +124,7 @@ base64 -w0 radiopult.jks   # Ausgabe -> RADIOPULT_KEYSTORE_BASE64
 Ohne diese Secrets bricht der Workflow ab, statt ein APK mit wechselndem Schlüssel zu veröffentlichen, das sich nicht über die installierte App aktualisieren lässt. Die Keystore-Datei und die Passwörter gut aufbewahren: Mit einem neuen Schlüssel muss die App einmal deinstalliert werden (dabei gehen die gespeicherten PINs verloren).
 
 Test-Builds (`assembleDebug`) werden mit dem eingecheckten `app/debug.keystore` signiert und als eigene App „RadioPult Test“ (`de.radiopult.app.debug`) installiert. Sie lassen sich untereinander aktualisieren, egal wo sie gebaut wurden, und kommen der Release-App nicht in die Quere.
+
+### Lizenz
+
+RadioPult ist freie Software unter der [GNU General Public License v3.0](LICENSE).
