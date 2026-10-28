@@ -14,8 +14,8 @@ android {
         targetSdk = 35
         // Raise both before tagging a release (tag V<versionName>, see README › Releases).
         // F-Droid builds from the tagged source and reads the version from here.
-        versionCode = 7
-        versionName = "1.6.0"
+        versionCode = 8
+        versionName = "1.7.0"
     }
 
     // Release signing comes from environment variables (set by CI from repository secrets).
@@ -81,4 +81,6 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation("junit:junit:4.13.2")
+    // XML-Parser für die Tests der Antwortauswertung (auf dem Gerät liefert Android ihn mit)
+    testImplementation("net.sf.kxml:kxml2:2.3.0")
 }

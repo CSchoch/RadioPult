@@ -1,0 +1,6 @@
+- Zufall, Wiederholen und Spulen; UKW-Abstimmung; mehr Infos zum Titel
+- Lautstärketasten des Handys steuern das Radio; auf Wunsch Steuerung auf dem Sperrbildschirm
+- Favoriten umbenennen und Stream-Adresse ändern; laufender Favorit markiert
+- Multiroom-Gruppen und Stereopaare; Musik vom Handy auf dem Radio
+- Bluetooth koppeln, Zeitzone und Sommerzeit, Netzwerkinfos, Stream-Qualität, Lautsprecher-Verzögerung, Radio finden
+- Einrichtung per WPS, Kabel oder fester IP

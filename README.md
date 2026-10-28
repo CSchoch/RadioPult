@@ -23,18 +23,23 @@ Did RadioPult work (or not work) with your radio? Please [open an issue](https:/
 
 ## Features
 
-- First-time setup: bring a new radio from its setup Wi-Fi into your home Wi-Fi and name it (like "Set up audio system" in UNDOK)
+- First-time setup: bring a new radio from its setup Wi-Fi into your home Wi-Fi and name it (like "Set up audio system" in UNDOK), also via the WPS button, with a network cable or with a fixed IP address
 - Finds radios on the network automatically (or enter the IP address)
-- Power on / standby, source (internet radio, DAB, FM, Bluetooth, AUX …), volume and mute
-- Play / stop, next / previous, station name, track info and station logo
-- Presets (favorites): recall, save the current station or any station from the list, delete, reorder
-- Station list for internet radio and DAB (with search and DAB scan), CD track list, USB / music browsing
+- Power on / standby, source (internet radio, DAB, FM, Bluetooth, AUX …), volume and mute; the phone's volume buttons control the radio
+- Play / stop, next / previous, shuffle, repeat and a seek bar where the source supports them; station name, track info, more details and station logo
+- FM: frequency display, tuning slider and steps, station search up / down
+- Presets (favorites): recall, see which one is playing, save the current station or any station from the list, rename, change the stream address, delete, reorder
+- Station list for internet radio and DAB (with search, DAB scan with live count), CD track list, USB / music browsing, context menus and sign-in forms of the radio's services
+- Multiroom groups (create, add and remove radios, volume of all and of each) and stereo pairs
+- Play music from the phone on the radio (UPnP)
+- Bluetooth: make the radio visible for pairing, see paired devices
+- Optional media notification with lock-screen controls (off by default, *Settings › Controls in notification*)
 - Equalizer presets, custom bass / treble and loudness
-- Settings: device info, rename radio, language, sleep timer, date and time, factory reset
+- Settings: device and network info, rename radio, language, sleep timer, date and time (time zone, daylight saving time, phone time), internet radio quality, delay for external speakers, find radio (plays a tone), factory reset
 - Remembers the last radio and its PIN and reconnects on start
 - No account, no ads, no tracking: the app controls the radio directly in your local network (only station logos are loaded from the address the radio reports)
 
-Not included (compared to UNDOK): setup via WPS or LAN cable, multiroom, alarms, Spotify and other streaming services. RadioPult is Android only (Android 8.0 or newer); there is no iPhone version.
+Not included (compared to UNDOK): alarms, firmware updates, Spotify Connect and other streaming apps. RadioPult is Android only (Android 8.0 or newer); there is no iPhone version.
 
 ## Connecting
 
@@ -65,21 +70,26 @@ Eigene Android-Fernbedienung für WLAN-Radios mit Frontier-Silicon-Modul (die Ge
 
 ### Was die App kann
 
-- Ersteinrichtung: neues Radio über sein Setup-WLAN ins Heim-WLAN bringen und benennen (wie „Audiosystem einrichten“ in UNDOK)
+- Ersteinrichtung: neues Radio über sein Setup-WLAN ins Heim-WLAN bringen und benennen (wie „Audiosystem einrichten“ in UNDOK), auch per WPS-Taste, Netzwerkkabel oder mit fester IP-Adresse
 - Radios im WLAN automatisch finden (oder IP-Adresse manuell eingeben)
 - Ein/Aus (Standby)
 - Quelle wählen (Internetradio, DAB, UKW, Bluetooth, AUX …, je nach Gerät)
-- Lautstärke und Stummschaltung
-- Abspielen/Stopp, Vor/Zurück
-- Anzeige von Sender, Titel/Info-Text und Senderlogo
-- Favoriten (Presets) der aktuellen Quelle anzeigen und abrufen
-- Favoriten bearbeiten: aktuellen Sender oder direkt einen Sender aus der Senderliste (☆) auf einem Platz speichern, löschen, Reihenfolge ändern
-- Senderliste für Internetradio und DAB (inkl. Suche und DAB-Sendersuchlauf), Titelliste für CD, Durchsuchen von USB/Musik
-- Einstellungen: Geräteinfos (Modell, Firmware, IP, MAC, WLAN und Signalstärke), Radio umbenennen, Sprache, Sleep-Timer, Datum & Uhrzeit (12/24 Stunden, Zeitquelle), Werkseinstellungen
+- Lautstärke und Stummschaltung, auch mit den Lautstärketasten des Handys
+- Abspielen/Stopp, Vor/Zurück, Zufall, Wiederholen und Spulen, wo die Quelle das kann
+- Anzeige von Sender, Titel/Info-Text, mehr Infos zum Titel und Senderlogo
+- UKW: Frequenz anzeigen, per Schieber oder schrittweise einstellen, Sendersuche auf/ab
+- Favoriten (Presets) der aktuellen Quelle anzeigen und abrufen, der laufende ist markiert
+- Favoriten bearbeiten: aktuellen Sender oder direkt einen Sender aus der Senderliste (☆) auf einem Platz speichern, umbenennen, Stream-Adresse ändern, löschen, Reihenfolge ändern
+- Senderliste für Internetradio und DAB (inkl. Suche und DAB-Sendersuchlauf mit Zähler), Titelliste für CD, Durchsuchen von USB/Musik, Kontextmenüs und Anmeldeformulare der Dienste im Radio
+- Multiroom-Gruppen (anlegen, Radios hinzufügen/entfernen, Lautstärke aller und einzeln) und Stereopaare
+- Musik vom Handy auf dem Radio abspielen (UPnP)
+- Bluetooth: Radio zum Koppeln sichtbar machen, gekoppelte Geräte sehen
+- Auf Wunsch Medien-Benachrichtigung mit Steuerung auf dem Sperrbildschirm (ab Werk aus, *Einstellungen › Steuerung in der Benachrichtigung*)
+- Einstellungen: Geräte- und Netzwerkinfos (Modell, Firmware, IP, DHCP, Gateway, DNS, MAC, WLAN und Signalstärke), Radio umbenennen, Sprache, Sleep-Timer, Datum & Uhrzeit (12/24 Stunden, Zeitquelle, Zeitzone, Sommerzeit, Uhrzeit vom Handy), Qualität Internetradio, Verzögerung externer Lautsprecher, Radio finden (Suchton), Werkseinstellungen
 - Equalizer: Klang-Preset wählen (Normal, Jazz, Rock …), im eigenen Preset („My EQ“) Bass/Höhen und Loudness einstellen
 - Merkt sich das zuletzt genutzte Radio und die PIN: beim Start verbindet die App sich direkt mit dem letzten Radio, bekannte Radios verbinden per Antippen ohne PIN-Abfrage (PIN ändern: Radio lange gedrückt halten)
 
-Nicht enthalten (im Vergleich zu UNDOK): Einrichtung per WPS oder LAN-Kabel, Multiroom, Wecker, Spotify/Streamingdienste.
+Nicht enthalten (im Vergleich zu UNDOK): Wecker, Firmware-Updates, Spotify Connect und andere Streaming-Apps.
 
 ### So baust du die App
 
@@ -107,6 +117,9 @@ Nicht enthalten (im Vergleich zu UNDOK): Einrichtung per WPS oder LAN-Kabel, Mul
   - `fsapi/RadioSetup.kt` – Ersteinrichtung (WLAN-Suche, Passwort-Verschlüsselung)
   - `setup/` – Setup-WLAN und Ablauf der Einrichtung
   - `RadioViewModel.kt` – Zustand und Befehle
+  - `Multiroom.kt` – Multiroom-Gruppen und Stereopaare
+  - `RadioService.kt` – Medien-Benachrichtigung (optional) und Hintergrund für Musik vom Handy
+  - `localmusic/` – Musik vom Handy: Medienbibliothek, kleiner HTTP-Server, UPnP-Steuerung des Radios
   - `fsapi/Values.kt` – Rohwerte des Radios lesbar machen (IP-Adresse, Sprachen, Zeitquellen)
   - `ui/` – Bildschirme (`EqualizerSheet.kt` – Equalizer, `SettingsScreens.kt` – Einstellungen, `FavoritesScreen.kt` – Favoriten bearbeiten, `BrowseScreen.kt` – Sender-/Titelliste)
 

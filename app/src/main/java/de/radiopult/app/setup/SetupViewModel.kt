@@ -16,6 +16,7 @@ import de.radiopult.app.fsapi.FsApiException
 import de.radiopult.app.fsapi.Nodes
 import de.radiopult.app.fsapi.RadioDevice
 import de.radiopult.app.fsapi.RadioSetup
+import de.radiopult.app.fsapi.StaticIp
 import de.radiopult.app.fsapi.WifiNetwork
 import de.radiopult.app.fsapi.WrongPinException
 import kotlinx.coroutines.CancellationException
@@ -36,6 +37,8 @@ data class SetupUi(
     val selected: WifiNetwork? = null,
     val status: String = "",
     val found: RadioDevice? = null,
+    /** Feste IP statt DHCP – gilt für WLAN und Kabel; null = automatisch. */
+    val staticIp: StaticIp? = null,
 )
 
 /** Assistent für die Ersteinrichtung eines Radios (wie „Audiosystem einrichten“ in UNDOK). */
@@ -166,24 +169,61 @@ class SetupViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun apply(network: WifiNetwork, passphrase: String) = launchStep {
         val c = client ?: return@launchStep
+        checkStaticIp()
         val previous = ui.step
         ui = ui.copy(step = SetupStep.APPLYING, selected = network, status = str(R.string.setup_status_sending))
         try {
-            RadioSetup(c).connectTo(network, passphrase)
+            RadioSetup(c).connectTo(network, passphrase, ui.staticIp)
         } catch (e: IOException) {
             ui = ui.copy(step = previous)
             throw e
         }
-        // Das Radio schließt jetzt sein Setup-WLAN; das Handy geht zurück ins Heimnetz
-        wifi.release()
-        client = null
-        ui = ui.copy(status = str(R.string.setup_status_connecting, network.ssid))
-        ui = ui.copy(step = SetupStep.DONE, found = findRadio(ui.name.trim()))
+        finish(str(R.string.setup_status_connecting, network.ssid))
     }
 
-    private suspend fun findRadio(name: String): RadioDevice? {
+    /** Eine halb ausgefüllte feste IP nicht ans Radio schicken – es wäre danach nicht erreichbar. */
+    private fun checkStaticIp() {
+        if (ui.staticIp?.valid == false) throw FsApiException(R.string.setup_static_ip_incomplete)
+    }
+
+    fun setStaticIp(ip: StaticIp?) {
+        ui = ui.copy(staticIp = ip)
+    }
+
+    /** Statt WLAN-Passwort: WPS-Taste am Router drücken. */
+    fun connectWps() = launchStep {
+        val c = client ?: return@launchStep
+        RadioSetup(c).startWps()
+        ui = ui.copy(step = SetupStep.APPLYING, status = str(R.string.setup_wps_status))
+        // bis zu zwei Minuten auf den Tastendruck am Router warten
+        finish(str(R.string.setup_wps_status), attempts = 30)
+    }
+
+    /** Statt WLAN: Netzwerkkabel. */
+    fun connectWired() = launchStep {
+        val c = client ?: return@launchStep
+        checkStaticIp()
+        ui = ui.copy(step = SetupStep.APPLYING, status = str(R.string.setup_status_sending))
+        try {
+            RadioSetup(c).connectWired(ui.staticIp)
+        } catch (e: IOException) {
+            ui = ui.copy(step = SetupStep.NETWORKS)
+            throw e
+        }
+        finish(str(R.string.setup_status_wired))
+    }
+
+    /** Das Radio schließt jetzt sein Setup-WLAN; das Handy geht zurück ins Heimnetz und sucht es dort. */
+    private suspend fun finish(status: String, attempts: Int = 8) {
+        wifi.release()
+        client = null
+        ui = ui.copy(status = status)
+        ui = ui.copy(step = SetupStep.DONE, found = findRadio(ui.name.trim(), attempts))
+    }
+
+    private suspend fun findRadio(name: String, attempts: Int): RadioDevice? {
         delay(8000)
-        repeat(8) {
+        repeat(attempts) {
             val devices = try {
                 Discovery.discover(getApplication())
             } catch (e: CancellationException) {
