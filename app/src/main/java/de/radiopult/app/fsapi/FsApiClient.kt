@@ -64,6 +64,9 @@ object Nodes {
     const val PLAY_STATUS = "netRemote.play.status"
     const val PLAY_CONTROL = "netRemote.play.control"
     const val NAV_STATE = "netRemote.nav.state"
+
+    /** Bitmaske je Quelle: Bit 0 = Liste/Navigation, Bit 1 = Favoriten, Bit 2 = Favoriten bearbeitbar. */
+    const val NAV_CAPS = "netRemote.nav.caps"
     const val PRESETS = "netRemote.nav.presets"
     const val SELECT_PRESET = "netRemote.nav.action.selectPreset"
     const val EQ_PRESETS = "netRemote.sys.caps.eqPresets"

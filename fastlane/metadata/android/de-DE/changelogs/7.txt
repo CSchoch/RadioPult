@@ -1,0 +1,2 @@
+- Der Listen-Knopf erscheint nur bei Quellen, für die das Radio eine Liste anbietet, wie in UNDOK
+- CD-Betrieb: Gibt das Radio die Titelliste nicht heraus, sagt die App das und bietet Zurück/Weiter an

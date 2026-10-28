@@ -14,8 +14,8 @@ android {
         targetSdk = 35
         // Raise both before tagging a release (tag V<versionName>, see README › Releases).
         // F-Droid builds from the tagged source and reads the version from here.
-        versionCode = 6
-        versionName = "1.5.0"
+        versionCode = 7
+        versionName = "1.6.0"
     }
 
     // Release signing comes from environment variables (set by CI from repository secrets).

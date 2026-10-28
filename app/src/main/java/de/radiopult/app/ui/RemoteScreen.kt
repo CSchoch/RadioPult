@@ -387,7 +387,7 @@ private fun SectionHeader(title: String, action: @Composable () -> Unit = {}) {
 private fun SourcesRow(s: RadioUi, onSelect: (Mode) -> Unit, onBrowse: () -> Unit) {
     Column {
         SectionHeader(stringResource(R.string.source)) {
-            s.mode?.takeIf { it.browsable }?.let { mode ->
+            s.mode?.takeIf { s.listAvailable }?.let { mode ->
                 TextButton(onClick = onBrowse) {
                     Icon(Icons.AutoMirrored.Filled.List, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))

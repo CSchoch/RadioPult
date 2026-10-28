@@ -24,7 +24,7 @@ import java.io.IOException
 
 data class Mode(val key: Int, val label: String, val id: String = "") {
 
-    /** Quellen ohne Liste (UKW, AUX, Bluetooth …) bekommen keine Sender-/Titelliste. */
+    /** Meldet das Radio netRemote.nav.caps nicht: Quellen ohne Liste (UKW, AUX, Bluetooth …) am Namen erkennen. */
     val browsable: Boolean
         get() {
             val i = id.uppercase()
@@ -64,8 +64,13 @@ data class RadioUi(
     val playing: Boolean = false,
     val coverUrl: String? = null,
     val presets: List<Preset> = emptyList(),
+    /** Ob das Radio für die aktuelle Quelle eine Liste anbietet (netRemote.nav.caps); null = meldet es nicht. */
+    val navigable: Boolean? = null,
 ) {
     val mode get() = modes.firstOrNull { it.key == modeKey }
+
+    /** Wie UNDOK der Angabe des Radios folgen; ohne sie nach dem Namen der Quelle raten. */
+    val listAvailable get() = navigable ?: mode?.browsable ?: false
 }
 
 /** Eintrag der Sender-/Titelliste: Ordner, Abspielbares oder Suche. */
@@ -338,6 +343,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
             val artist = c.get(Nodes.INFO_ARTIST)?.trim().orEmpty()
             val status = c.get(Nodes.PLAY_STATUS)?.trim()?.toIntOrNull()
             val cover = c.get(Nodes.INFO_GRAPHIC)?.trim()?.takeIf { it.startsWith("http") }
+            val navigable = c.get(Nodes.NAV_CAPS)?.trim()?.toLongOrNull()?.let { it and 1L != 0L }
 
             if (client !== c) return // inzwischen getrennt
             ui = ui.copy(
@@ -354,6 +360,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
                 // 1 = Puffern, 2 = Spielt, 4 = Puffern nach Unterbrechung
                 playing = status == 1 || status == 2 || status == 4,
                 coverUrl = cover,
+                navigable = navigable,
             )
         } catch (e: FsApiException) {
             ui = ui.copy(error = e.describe(getApplication()))
@@ -381,7 +388,7 @@ class RadioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun selectMode(mode: Mode) {
-        ui = ui.copy(modeKey = mode.key, presets = emptyList(), station = "", text = "", artist = "", coverUrl = null)
+        ui = ui.copy(modeKey = mode.key, presets = emptyList(), station = "", text = "", artist = "", coverUrl = null, navigable = null)
         command { it.set(Nodes.MODE, mode.key.toString()) }
     }
 
