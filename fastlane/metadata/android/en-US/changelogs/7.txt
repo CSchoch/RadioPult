@@ -1,0 +1,2 @@
+- The list button only appears for sources where the radio offers a list, as in UNDOK
+- CD mode: if the radio does not share the track list, the app says so and offers previous/next
