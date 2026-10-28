@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SettingsInputAntenna
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Stop
@@ -44,6 +46,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -83,6 +86,7 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
     val mode = s.mode
     val isDab = mode?.id.equals("DAB", ignoreCase = true)
     val isStationList = isDab || mode?.id.equals("IR", ignoreCase = true)
+    val isCd = mode?.id.equals("CD", ignoreCase = true)
     var filter by rememberSaveable { mutableStateOf("") }
     var filtering by rememberSaveable { mutableStateOf(false) }
     var searchIn by remember { mutableStateOf<NavItem?>(null) }
@@ -161,6 +165,9 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
                     HintText(b.error)
                     TextButton(onClick = vm::openBrowser) { Text(stringResource(R.string.retry)) }
                 }
+
+                // Viele CD-Radios geben die Titel der CD gar nicht über die Schnittstelle heraus.
+                !b.loading && b.items.isEmpty() && isCd -> CdWithoutList(onPrev = vm::previous, onNext = vm::next)
 
                 !b.loading && b.items.isEmpty() -> Column(Modifier.padding(16.dp)) {
                     HintText(stringResource(R.string.browse_empty))
@@ -293,6 +300,26 @@ private fun NavRow(
                         tint = if (favorite) cs.primary else cs.onSurfaceVariant,
                     )
                 }
+            }
+        }
+    }
+}
+
+/** Ersatz für die Titelliste, wenn das Radio sie im CD-Betrieb nicht liefert: Titel vor/zurück. */
+@Composable
+private fun CdWithoutList(onPrev: () -> Unit, onNext: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+        HintText(stringResource(R.string.browse_cd_no_list))
+        Spacer(Modifier.padding(8.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        ) {
+            FilledTonalIconButton(onClick = onPrev, modifier = Modifier.size(56.dp)) {
+                Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.previous), modifier = Modifier.size(28.dp))
+            }
+            FilledTonalIconButton(onClick = onNext, modifier = Modifier.size(56.dp)) {
+                Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.skip_next), modifier = Modifier.size(28.dp))
             }
         }
     }

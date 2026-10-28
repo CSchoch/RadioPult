@@ -24,6 +24,7 @@
     <string name="clear">Clear</string>
     <string name="browse_scanning">Station scan in progress … this can take a minute or two.</string>
     <string name="browse_empty">The list is empty.</string>
+    <string name="browse_cd_no_list">This radio doesn\'t share the CD\'s track list. You can skip between tracks here or on the radio.</string>
     <string name="browse_start_scan">Start station scan</string>
     <string name="favorite_pick_hint">Which slot should “%1$s” go to? The station will be switched on for this.</string>
     <string name="search_term">Search term</string>

@@ -23,6 +23,7 @@
     <string name="clear">Leeren</string>
     <string name="browse_scanning">Sendersuchlauf läuft … das kann ein bis zwei Minuten dauern.</string>
     <string name="browse_empty">Die Liste ist leer.</string>
+    <string name="browse_cd_no_list">Dieses Radio gibt die Titelliste der CD nicht heraus. Titel lassen sich hier oder am Radio weiterschalten.</string>
     <string name="browse_start_scan">Sendersuchlauf starten</string>
     <string name="favorite_pick_hint">Auf welchem Platz soll „%1$s“ liegen? Der Sender wird dafür eingeschaltet.</string>
     <string name="search_term">Suchbegriff</string>
