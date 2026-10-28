@@ -23,10 +23,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiFind
+import androidx.compose.material.icons.filled.WifiProtectedSetup
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +41,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -59,6 +62,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.radiopult.app.R
 import de.radiopult.app.fsapi.RadioDevice
+import de.radiopult.app.fsapi.StaticIp
+import de.radiopult.app.fsapi.Values
 import de.radiopult.app.fsapi.WifiNetwork
 import de.radiopult.app.setup.SetupStep
 import de.radiopult.app.setup.SetupUi
@@ -95,7 +100,10 @@ fun SetupScreen(vm: SetupViewModel, onFinished: (RadioDevice?) -> Unit) {
                 SetupStep.INTRO -> IntroStep(onNext = vm::next)
                 SetupStep.JOIN -> JoinStep(s, vm.canPickWifi, vm::setPin, vm::joinWithPicker, vm::joinManually)
                 SetupStep.NAME -> NameStep(s, vm::setName, vm::saveName)
-                SetupStep.NETWORKS -> NetworksStep(s, vm::choose, vm::chooseHidden, vm::rescan)
+                SetupStep.NETWORKS -> {
+                    NetworksStep(s, vm::choose, vm::chooseHidden, vm::rescan)
+                    if (!s.busy) OtherConnections(s, onWps = vm::connectWps, onWired = vm::connectWired, onStaticIp = vm::setStaticIp)
+                }
                 SetupStep.PASSWORD -> PasswordStep(s, vm::connectWith, vm::back)
                 SetupStep.APPLYING -> Busy(s.status)
                 SetupStep.DONE -> DoneStep(s) {
@@ -243,6 +251,55 @@ private fun NetworksStep(
     HiddenNetwork(onHidden)
 }
 
+/** Andere Wege ins Netz (wie in UNDOK): WPS-Taste am Router, Netzwerkkabel, feste IP-Adresse. */
+@Composable
+private fun OtherConnections(s: SetupUi, onWps: () -> Unit, onWired: () -> Unit, onStaticIp: (StaticIp?) -> Unit) {
+    Text(stringResource(R.string.setup_other_ways), style = MaterialTheme.typography.titleMedium)
+    OutlinedButton(onClick = onWps, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Filled.WifiProtectedSetup, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.setup_wps))
+    }
+    Paragraph(stringResource(R.string.setup_wps_hint))
+    OutlinedButton(onClick = onWired, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.Filled.SettingsEthernet, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.setup_wired))
+    }
+    Paragraph(stringResource(R.string.setup_wired_hint))
+    val ip = s.staticIp
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.setup_static_ip), style = MaterialTheme.typography.bodyLarge)
+            Paragraph(stringResource(R.string.setup_static_ip_hint))
+        }
+        Switch(
+            checked = ip != null,
+            onCheckedChange = { onStaticIp(if (it) StaticIp("", "255.255.255.0", "", "") else null) },
+        )
+    }
+    if (ip != null) {
+        listOf<Triple<Int, String, (String) -> StaticIp>>(
+            Triple(R.string.ip_address, ip.address) { v -> ip.copy(address = v) },
+            Triple(R.string.subnet_mask, ip.subnet) { v -> ip.copy(subnet = v) },
+            Triple(R.string.gateway, ip.gateway) { v -> ip.copy(gateway = v) },
+            Triple(R.string.dns_primary, ip.dns1) { v -> ip.copy(dns1 = v) },
+            Triple(R.string.dns_secondary, ip.dns2) { v -> ip.copy(dns2 = v) },
+        ).forEach { (label, value, update) ->
+            OutlinedTextField(
+                value = value,
+                onValueChange = { onStaticIp(update(it.filter { c -> c.isDigit() || c == '.' }.take(15))) },
+                label = { Text(stringResource(label)) },
+                singleLine = true,
+                isError = value.isNotEmpty() && Values.ipNumber(value) == null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (!ip.valid) Paragraph(stringResource(R.string.setup_static_ip_incomplete))
+    }
+}
+
 @Composable
 private fun HiddenNetwork(onHidden: (String, Boolean) -> Unit) {
     var open by rememberSaveable { mutableStateOf(false) }
@@ -314,7 +371,11 @@ private fun DoneStep(s: SetupUi, onDone: () -> Unit) {
         )
     }
     if (found != null) {
-        Paragraph(stringResource(R.string.setup_found, found.name, s.selected?.ssid.orEmpty()))
+        val ssid = s.selected?.ssid
+        Paragraph(
+            if (ssid != null) stringResource(R.string.setup_found, found.name, ssid)
+            else stringResource(R.string.setup_found_network, found.name),
+        )
     } else {
         Paragraph(
             stringResource(R.string.setup_not_found),

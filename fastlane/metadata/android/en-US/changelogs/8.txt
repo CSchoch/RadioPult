@@ -1,0 +1,6 @@
+- Shuffle, repeat and seek bar; FM tuning; more track details
+- Phone volume buttons control the radio; optional lock-screen controls
+- Rename favorites and change their stream address; playing favorite is marked
+- Multiroom groups and stereo pairs; play phone music on the radio
+- Bluetooth pairing, time zone and DST, network details, stream quality, speaker delay, find radio
+- Setup via WPS, network cable or fixed IP

@@ -26,9 +26,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Radio
@@ -41,6 +43,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -52,6 +55,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -66,17 +70,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import de.radiopult.app.ContextMenuUi
+import de.radiopult.app.FormField
 import de.radiopult.app.Mode
+import de.radiopult.app.NavForm
 import de.radiopult.app.NavItem
 import de.radiopult.app.Preset
 import de.radiopult.app.R
 import de.radiopult.app.RadioUi
 import de.radiopult.app.RadioViewModel
+import java.text.DateFormat
+import java.util.Date
 
 /** Sender-/Titelliste der aktuellen Quelle (Internetradio, DAB, CD, Musik …). */
 @Composable
@@ -159,6 +172,10 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
                     CircularProgressIndicator()
                     Spacer(Modifier.padding(8.dp))
                     HintText(stringResource(R.string.browse_scanning))
+                    b.scanFound?.let { n ->
+                        Spacer(Modifier.padding(4.dp))
+                        Text(pluralStringResource(R.plurals.browse_scan_found, n, n), style = MaterialTheme.typography.titleMedium)
+                    }
                 }
 
                 b.error != null -> Column(Modifier.padding(16.dp)) {
@@ -182,8 +199,11 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
+                    if (b.description.isNotBlank() || b.releaseDate != null) {
+                        item(key = "description") { DescriptionCard(b.description, b.releaseDate) }
+                    }
                     itemsIndexed(shown, key = { _, it -> it.key }) { index, item ->
-                        val playable = !item.folder && !item.search
+                        val playable = !item.folder && !item.search && !item.form && !item.message
                         NavRow(
                             item = item,
                             shape = groupShape(index, shown.lastIndex),
@@ -198,6 +218,7 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
                                 null
                             },
                             onFavorite = { favoriteFor = item },
+                            onMore = if (item.contextMenu) ({ vm.openContextMenu(item) }) else null,
                         )
                     }
                 }
@@ -231,6 +252,13 @@ fun BrowseScreen(vm: RadioViewModel, onBack: () -> Unit) {
         )
     }
 
+    b.contextMenu?.let { menu ->
+        ContextMenuDialog(menu, onChoose = vm::chooseContextItem, onDismiss = vm::closeContextMenu)
+    }
+    b.form?.let { form ->
+        FormDialog(form, busy = b.loading, onSubmit = vm::submitForm, onDismiss = vm::closeForm)
+    }
+
     searchIn?.let { item ->
         SearchDialog(
             title = item.name,
@@ -253,6 +281,7 @@ private fun NavRow(
     onClick: () -> Unit,
     favorite: Boolean?,
     onFavorite: () -> Unit,
+    onMore: (() -> Unit)?,
 ) {
     val cs = MaterialTheme.colorScheme
     Surface(
@@ -262,12 +291,13 @@ private fun NavRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .clickable(enabled = enabled, onClick = onClick),
+            // Hinweise des Radios sind nur Text
+            .clickable(enabled = enabled && !item.message, onClick = onClick),
     ) {
         Row(
             Modifier
                 .heightIn(min = 56.dp)
-                .padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = if (favorite != null) 4.dp else 16.dp),
+                .padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = if (favorite != null || onMore != null) 4.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -275,6 +305,8 @@ private fun NavRow(
                     playing -> Icons.Filled.GraphicEq
                     item.folder -> Icons.Outlined.Folder
                     item.search -> Icons.Filled.Search
+                    item.form -> Icons.AutoMirrored.Filled.Login
+                    item.message -> Icons.Outlined.Info
                     station -> Icons.Outlined.Radio
                     else -> Icons.Filled.MusicNote
                 },
@@ -284,12 +316,13 @@ private fun NavRow(
             Spacer(Modifier.width(16.dp))
             Text(
                 item.name,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 2,
+                style = if (item.message) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                fontStyle = if (item.message) FontStyle.Italic else FontStyle.Normal,
+                maxLines = if (item.message) 6 else 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            if (item.folder || item.search) {
+            if (item.folder || item.search || item.form) {
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = cs.onSurfaceVariant)
             }
             if (favorite != null) {
@@ -301,8 +334,130 @@ private fun NavRow(
                     )
                 }
             }
+            if (onMore != null) {
+                IconButton(onClick = onMore, enabled = enabled) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.more))
+                }
+            }
         }
     }
+}
+
+/** Text des Radios zum geöffneten Ordner (Album, Künstler, Sendung) – lang, daher aufklappbar. */
+@Composable
+private fun DescriptionCard(text: String, releaseDate: Long?) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(20.dp)).clickable { expanded = !expanded },
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            releaseDate?.let {
+                Text(
+                    stringResource(R.string.browse_release_date, DateFormat.getDateInstance().format(Date(it * 1000))),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+            if (text.isNotBlank()) {
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = if (expanded) Int.MAX_VALUE else 4,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** Kontextmenü eines Eintrags (z. B. „Zu Favoriten“, „Folgen“), so wie das Radio es liefert. */
+@Composable
+private fun ContextMenuDialog(menu: ContextMenuUi, onChoose: (NavItem) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(menu.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                when {
+                    menu.loading -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                    menu.error != null -> HintText(menu.error)
+                    menu.items.isEmpty() -> HintText(stringResource(R.string.browse_empty))
+                    else -> menu.items.forEach { item ->
+                        Text(
+                            item.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable(enabled = !item.message) { onChoose(item) }
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+    )
+}
+
+/** Formular des Radios, z. B. Anmeldung bei einem Musikdienst: Textfelder, Auswahl, Knöpfe. */
+@Composable
+private fun FormDialog(form: NavForm, busy: Boolean, onSubmit: (FormField, Map<String, String>) -> Unit, onDismiss: () -> Unit) {
+    var values by remember(form) {
+        mutableStateOf(form.fields.filter { it.choice }.associate { f -> f.id to (f.options.firstOrNull()?.key?.toString() ?: "") })
+    }
+    val buttons = form.fields.filter { it.button }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(form.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                form.fields.forEach { f ->
+                    when {
+                        f.text -> OutlinedTextField(
+                            value = values[f.id].orEmpty(),
+                            onValueChange = { values = values + (f.id to it) },
+                            label = { Text(f.label) },
+                            supportingText = f.description.takeIf { it.isNotBlank() }?.let { { Text(it) } },
+                            singleLine = true,
+                            visualTransformation = if (f.password) PasswordVisualTransformation() else VisualTransformation.None,
+                            keyboardOptions = KeyboardOptions(keyboardType = if (f.password) KeyboardType.Password else KeyboardType.Text),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+
+                        f.choice -> Column {
+                            Text(f.label, style = MaterialTheme.typography.titleSmall)
+                            f.options.forEach { o ->
+                                Row(
+                                    Modifier.fillMaxWidth().clickable { values = values + (f.id to o.key.toString()) },
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    RadioButton(selected = values[f.id] == o.key.toString(), onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(o.label, modifier = Modifier.padding(vertical = 8.dp))
+                                }
+                            }
+                        }
+
+                        f.button -> Unit
+
+                        else -> listOf(f.label, f.description).filter { it.isNotBlank() }.forEach { HintText(it) }
+                    }
+                }
+                if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            Row {
+                buttons.forEach { button ->
+                    TextButton(onClick = { onSubmit(button, values) }, enabled = !busy) { Text(button.label.ifEmpty { stringResource(R.string.ok) }) }
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 /** Ersatz für die Titelliste, wenn das Radio sie im CD-Betrieb nicht liefert: Titel vor/zurück. */

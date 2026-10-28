@@ -11,6 +11,12 @@ import javax.crypto.Cipher
 /** Ein WLAN, das das Radio sieht. [key] ist der Eintrag in der Suchliste, null bei einem versteckten Netz. */
 data class WifiNetwork(val key: Int?, val ssid: String, val secured: Boolean, val signal: Int = 0)
 
+/** Feste IP-Einstellungen statt DHCP; alle Adressen als „192.168.1.20“. [dns2] darf leer sein. */
+data class StaticIp(val address: String, val subnet: String, val gateway: String, val dns1: String, val dns2: String = "") {
+    val valid get() = listOf(address, subnet, gateway, dns1).all { Values.ipNumber(it) != null } &&
+        (dns2.isBlank() || Values.ipNumber(dns2) != null)
+}
+
 /**
  * Ersteinrichtung eines Radios, das im Setup-Modus ist (eigenes WLAN „Setup …“).
  * Ablauf wie bei UNDOK: WLANs suchen lassen, Netz wählen, Passwort verschlüsselt
@@ -47,7 +53,7 @@ class RadioSetup(private val client: FsApiClient) {
             .distinctBy { it.ssid }
     }
 
-    suspend fun connectTo(network: WifiNetwork, passphrase: String) {
+    suspend fun connectTo(network: WifiNetwork, passphrase: String, ip: StaticIp? = null) {
         if (network.key != null) {
             setOrFail(Nodes.WLAN_SELECT_AP, network.key.toString())
         } else {
@@ -57,12 +63,43 @@ class RadioSetup(private val client: FsApiClient) {
             setOrFail(Nodes.WLAN_SET_ENC_TYPE, if (network.secured) ENC_AES else ENC_NONE)
         }
         if (network.secured) setOrFail(Nodes.WLAN_SET_PASSPHRASE, encrypt(publicKey(), passphrase))
+        ip?.let { setIp(it) }
+        commit()
+    }
+
+    /** Netzwerkkabel statt WLAN (wie UNDOK „Ethernet“): Anschluss einschalten, IP per DHCP oder fest. */
+    suspend fun connectWired(ip: StaticIp?) {
+        setOrFail(Nodes.WIRED_ENABLED, "1")
+        if (ip != null) setIp(ip) else setOrFail(Nodes.IP_DHCP, "1")
+        commit()
+    }
+
+    /**
+     * WPS starten: danach hat man etwa zwei Minuten, um die WPS-Taste am Router zu drücken.
+     * Läuft schon eine WPS-Anmeldung (Wert ≠ 0), nicht noch einmal starten.
+     */
+    suspend fun startWps() {
+        val state = client.get(Nodes.WLAN_WPS)?.trim()
+        if (state == null || state == "0") setOrFail(Nodes.WLAN_WPS, "1")
+    }
+
+    private suspend fun setIp(ip: StaticIp) {
+        fun number(text: String) = (Values.ipNumber(text) ?: throw FsApiException(R.string.error_ip_invalid, text)).toString()
+        setOrFail(Nodes.IP_DHCP, "0")
+        setOrFail(Nodes.IP_ADDRESS, number(ip.address))
+        setOrFail(Nodes.IP_SUBNET, number(ip.subnet))
+        setOrFail(Nodes.IP_GATEWAY, number(ip.gateway))
+        setOrFail(Nodes.IP_DNS1, number(ip.dns1))
+        setOrFail(Nodes.IP_DNS2, if (ip.dns2.isBlank()) "0" else number(ip.dns2))
+    }
+
+    private suspend fun commit() {
         try {
             setOrFail(Nodes.NET_COMMIT, "1")
         } catch (e: FsApiException) {
             throw e
         } catch (ignored: IOException) {
-            // Das Radio wechselt sofort ins neue WLAN – die Antwort kommt dann oft nicht mehr an
+            // Das Radio wechselt sofort ins neue Netz – die Antwort kommt dann oft nicht mehr an
         }
     }
 

@@ -4,17 +4,22 @@
 
 <p><b>Funktionen</b></p>
 <ul>
-<li>Ersteinrichtung: neues Radio über sein Setup-WLAN ins Heim-WLAN bringen und benennen</li>
+<li>Ersteinrichtung: neues Radio über sein Setup-WLAN ins Heim-WLAN bringen und benennen, auch per WPS, Kabel oder fester IP</li>
 <li>Radios im WLAN automatisch finden oder IP-Adresse eingeben</li>
-<li>Ein/Aus, Quelle (Internetradio, DAB, UKW, Bluetooth, AUX …), Lautstärke und Stummschaltung</li>
-<li>Abspielen/Stopp, Vor/Zurück, Sender, Titel-Info und Senderlogo</li>
-<li>Favoriten: abrufen, aktuellen Sender oder einen Sender aus der Liste speichern, löschen, sortieren</li>
-<li>Senderliste für Internetradio und DAB mit Suche und DAB-Suchlauf, CD-Titelliste, USB durchsuchen</li>
+<li>Ein/Aus, Quelle (Internetradio, DAB, UKW, Bluetooth, AUX …), Lautstärke und Stummschaltung, auch mit den Lautstärketasten des Handys</li>
+<li>Abspielen/Stopp, Vor/Zurück, Zufall, Wiederholen, Spulen, Sender, Titel-Info und mehr Infos, Senderlogo</li>
+<li>UKW-Abstimmung mit Frequenzanzeige</li>
+<li>Favoriten: abrufen, aktuellen Sender oder einen Sender aus der Liste speichern, umbenennen, Stream-Adresse ändern, löschen, sortieren</li>
+<li>Senderliste für Internetradio und DAB mit Suche und DAB-Suchlauf, CD-Titelliste, USB durchsuchen, Kontextmenüs und Anmeldeformulare</li>
+<li>Multiroom-Gruppen und Stereopaare</li>
+<li>Musik vom Handy auf dem Radio abspielen</li>
+<li>Bluetooth koppeln</li>
+<li>Auf Wunsch Steuerung auf dem Sperrbildschirm</li>
 <li>Equalizer-Presets, eigener Bass/Höhen und Loudness</li>
-<li>Einstellungen: Geräteinfos, umbenennen, Sprache, Sleep-Timer, Datum und Uhrzeit, Werkseinstellungen</li>
+<li>Einstellungen: Geräte- und Netzwerkinfos, umbenennen, Sprache, Sleep-Timer, Datum, Uhrzeit und Zeitzone, Stream-Qualität, Lautsprecher-Verzögerung, Radio finden, Werkseinstellungen</li>
 <li>Merkt sich das letzte Radio und die PIN und verbindet sich beim Start direkt</li>
 </ul>
 
 <p>Kein Konto, keine Werbung, kein Tracking. Die App spricht direkt im Heimnetz mit dem Radio.</p>
 
-<p>Nicht enthalten: Einrichtung per WPS oder LAN-Kabel, Multiroom, Wecker, Spotify und andere Streamingdienste.</p>
+<p>Nicht enthalten: Wecker, Firmware-Updates, Spotify Connect und andere Streaming-Apps.</p>

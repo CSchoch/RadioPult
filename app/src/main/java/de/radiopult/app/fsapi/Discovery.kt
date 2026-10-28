@@ -24,20 +24,31 @@ object Discovery {
         "urn:schemas-frontier-silicon-com:fs_reference:fsapi:1",
     )
 
-    suspend fun discover(context: Context, timeoutMs: Long = 3500): List<RadioDevice> =
+    suspend fun discover(context: Context, timeoutMs: Long = 3500): List<RadioDevice> {
+        val hosts = search(context, searchTargets, timeoutMs).map { it.host }.distinct()
+        return coroutineScope {
+            hosts.map { h -> async(Dispatchers.IO) { RadioDevice(h, friendlyName(h) ?: h) } }.awaitAll()
+        }
+    }
+
+    /** Eine Antwort auf die SSDP-Suche: Adresse des Geräts und seine Beschreibung (LOCATION). */
+    data class Answer(val host: String, val location: String?, val target: String?)
+
+    /** SSDP-Suche nach [targets]; liefert jede Antwort einmal. */
+    suspend fun search(context: Context, targets: List<String>, timeoutMs: Long = 3500): List<Answer> =
         withContext(Dispatchers.IO) {
             val wifi = context.applicationContext.getSystemService(WifiManager::class.java)
             val lock = wifi?.createMulticastLock("radiopult")?.apply {
                 setReferenceCounted(false)
                 acquire()
             }
-            val hosts = linkedSetOf<String>()
+            val answers = linkedSetOf<Answer>()
             try {
                 DatagramSocket().use { socket ->
                     socket.soTimeout = 500
                     val group = InetAddress.getByName("239.255.255.250")
                     repeat(2) {
-                        for (st in searchTargets) {
+                        for (st in targets) {
                             val msg = ("M-SEARCH * HTTP/1.1\r\n" +
                                 "HOST: 239.255.255.250:1900\r\n" +
                                 "MAN: \"ssdp:discover\"\r\n" +
@@ -56,21 +67,19 @@ object Discovery {
                             continue
                         }
                         val text = String(packet.data, 0, packet.length)
-                        val location = text.lineSequence()
-                            .firstOrNull { it.startsWith("LOCATION:", ignoreCase = true) }
+                        fun header(name: String) = text.lineSequence()
+                            .firstOrNull { it.startsWith("$name:", ignoreCase = true) }
                             ?.substringAfter(':')?.trim()
+                        val location = header("LOCATION")
                         val host = location?.let { runCatching { URL(it).host }.getOrNull() }
                             ?: packet.address?.hostAddress
-                        if (!host.isNullOrBlank()) hosts += host
+                        if (!host.isNullOrBlank()) answers += Answer(host, location, header("ST"))
                     }
                 }
             } finally {
                 lock?.release()
             }
-
-            coroutineScope {
-                hosts.map { h -> async { RadioDevice(h, friendlyName(h) ?: h) } }.awaitAll()
-            }
+            answers.toList()
         }
 
     /** Der Name steht ohne PIN unter /device. */

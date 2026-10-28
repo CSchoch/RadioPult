@@ -16,9 +16,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -31,6 +33,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,12 +41,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.radiopult.app.Preset
@@ -57,6 +63,9 @@ fun FavoritesScreen(vm: RadioViewModel, onBack: () -> Unit) {
     val modeLabel = s.mode?.label.orEmpty()
     var confirmStore by remember { mutableStateOf<Preset?>(null) }
     var confirmDelete by remember { mutableStateOf<Preset?>(null) }
+    var editing by remember { mutableStateOf<Preset?>(null) }
+    // Name und Adresse ändern nur, wo das Radio es erlaubt (bzw. nichts dazu meldet)
+    val editable = s.presetsEditable != false
 
     SubScreen(vm, if (modeLabel.isEmpty()) stringResource(R.string.favorites) else stringResource(R.string.favorites_for_mode, modeLabel), onBack) { pad ->
         LazyColumn(
@@ -82,6 +91,7 @@ fun FavoritesScreen(vm: RadioViewModel, onBack: () -> Unit) {
                     onStore = { if (slot.empty) vm.storePreset(slot) else confirmStore = slot },
                     onDelete = { confirmDelete = slot },
                     onMove = { delta -> vm.movePreset(slot, delta) },
+                    onEdit = if (!slot.empty && editable) ({ editing = slot }) else null,
                 )
             }
         }
@@ -99,6 +109,18 @@ fun FavoritesScreen(vm: RadioViewModel, onBack: () -> Unit) {
                 }) { Text(stringResource(R.string.overwrite)) }
             },
             dismissButton = { TextButton(onClick = { confirmStore = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    editing?.let { slot ->
+        EditPresetDialog(
+            slot,
+            // die Adresse kennen nur Internet-Sender
+            showUrl = slot.url.isNotEmpty(),
+            onDismiss = { editing = null },
+            onSave = { name, url ->
+                vm.editPreset(slot, name, url)
+                editing = null
+            },
         )
     }
     confirmDelete?.let { slot ->
@@ -149,6 +171,7 @@ private fun PresetSlot(
     onStore: () -> Unit,
     onDelete: () -> Unit,
     onMove: (Int) -> Unit,
+    onEdit: (() -> Unit)?,
 ) {
     var menu by remember { mutableStateOf(false) }
     val cs = MaterialTheme.colorScheme
@@ -205,6 +228,16 @@ private fun PresetSlot(
                                 onStore()
                             },
                         )
+                        onEdit?.let { edit ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.preset_edit)) },
+                                leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                                onClick = {
+                                    menu = false
+                                    edit()
+                                },
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.delete)) },
                             leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
@@ -218,4 +251,41 @@ private fun PresetSlot(
             }
         }
     }
+}
+
+/** Name (und bei Internetradio die Stream-Adresse) eines Favoriten ändern. */
+@Composable
+private fun EditPresetDialog(slot: Preset, showUrl: Boolean, onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+    var name by rememberSaveable { mutableStateOf(slot.name) }
+    var url by rememberSaveable { mutableStateOf(slot.url) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.preset_edit_title, slot.key + 1)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(64) },
+                    label = { Text(stringResource(R.string.name)) },
+                    singleLine = true,
+                )
+                if (showUrl) {
+                    OutlinedTextField(
+                        value = url,
+                        onValueChange = { url = it.trim() },
+                        label = { Text(stringResource(R.string.preset_url)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(name, url) },
+                enabled = name.isNotBlank() && (!showUrl || url.startsWith("http")),
+            ) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
